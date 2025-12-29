@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "fruitsicecreamutilities:block/exp-core-mk3"
+  }
+}

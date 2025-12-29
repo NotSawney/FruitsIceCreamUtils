@@ -84,6 +84,11 @@ public class ExperienceCoreBlockEntity extends BlockEntity implements MenuProvid
         return storedExperience;
     }
 
+    public void setStoredExperience(int amount) {
+        this.storedExperience = amount;
+        setChanged();
+    }
+
     public void collectExperience(Player player) {
         if (storedExperience <= 0 || level == null || level.isClientSide) return;
 

@@ -16,5 +16,7 @@
   "container.fruitsicecreamutilities.exp_core_mk4": "Núcleo de Experiencia MK-IV",
   "container.fruitsicecreamutilities.exp_core_mk5": "Núcleo de Experiencia MK-V",
 
-  "gui.fruitsicecreamutilities.collect": "Recolectar"
+  "gui.fruitsicecreamutilities.collect": "Recolectar",
+
+  "tooltip.fruitsicecreamutilities.stored_experience": "Experiencia Almacenada: %s"
 }

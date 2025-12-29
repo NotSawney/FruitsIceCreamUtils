@@ -1,16 +1,25 @@
 package com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks;
 
+import com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEntity.ExperienceCoreBlockEntity;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.BaseEntityBlock;
+import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraftforge.network.NetworkHooks;
+import org.jetbrains.annotations.Nullable;
 
-public class ExperienceCoreBlock extends Block {
+public class ExperienceCoreBlock extends BaseEntityBlock {
     private final int tier;
     private final int xpPerHour;
-    private static final int TICKS_PER_HOUR = 72000; // 20 ticks/seg * 3600 seg
 
     public ExperienceCoreBlock(Properties properties, int tier, int xpPerHour) {
         super(properties);
@@ -18,40 +27,41 @@ public class ExperienceCoreBlock extends Block {
         this.xpPerHour = xpPerHour;
     }
 
+    @Nullable
     @Override
-    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
-        super.onPlace(state, level, pos, oldState, isMoving);
-        if (!level.isClientSide) {
-            // Programar el primer tick
-            level.scheduleTick(pos, this, getTickDelay());
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        ExperienceCoreBlockEntity be = new ExperienceCoreBlockEntity(pos, state);
+        be.setTierAndRate(tier, xpPerHour);
+        return be;
+    }
+
+    @Override
+    public RenderShape getRenderShape(BlockState state) {
+        return RenderShape.MODEL;
+    }
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+        if (level.isClientSide) {
+            return null;
         }
+        return (lvl, pos, st, blockEntity) -> {
+            if (blockEntity instanceof ExperienceCoreBlockEntity be) {
+                ExperienceCoreBlockEntity.tick(lvl, pos, st, be);
+            }
+        };
     }
 
     @Override
-    public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
-        // Generar XP
-        generateExperience(level, pos);
-
-        // Programar el siguiente tick
-        level.scheduleTick(pos, this, getTickDelay());
-    }
-
-    private void generateExperience(ServerLevel level, BlockPos pos) {
-        // Por ahora solo log, luego implementaremos la generación real de XP
-        // La generación real necesitará buscar jugadores cercanos o almacenar XP
-        int xpPerTick = xpPerHour / TICKS_PER_HOUR;
-
-        // TODO: Implementar lógica de generación de XP
-        // Opciones:
-        // 1. Generar orbes de XP directamente
-        // 2. Almacenar en el bloque y que el jugador lo recoja
-        // 3. Darlo al jugador más cercano
-    }
-
-    private int getTickDelay() {
-        // Calcular cada cuántos ticks debe generar XP
-        // Para 360 XP/hora = 0.005 XP/tick, generemos 1 XP cada 200 ticks (10 segundos)
-        return 200;
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
+        if (!level.isClientSide) {
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof ExperienceCoreBlockEntity) {
+                NetworkHooks.openScreen((ServerPlayer) player, (ExperienceCoreBlockEntity) be, pos);
+            }
+        }
+        return InteractionResult.sidedSuccess(level.isClientSide);
     }
 
     public int getTier() {

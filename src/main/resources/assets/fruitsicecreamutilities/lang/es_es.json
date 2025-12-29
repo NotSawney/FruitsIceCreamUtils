@@ -1,0 +1,20 @@
+{
+  "creativetab.fruitsicecreamutilities": "FruitsIceCream Utilidades",
+
+  "block.fruitsicecreamutilities.exp_core_mk1": "Núcleo de Experiencia MK-I",
+  "block.fruitsicecreamutilities.exp_core_mk2": "Núcleo de Experiencia MK-II",
+  "block.fruitsicecreamutilities.exp_core_mk3": "Núcleo de Experiencia MK-III",
+  "block.fruitsicecreamutilities.exp_core_mk4": "Núcleo de Experiencia MK-IV",
+  "block.fruitsicecreamutilities.exp_core_mk5": "Núcleo de Experiencia MK-V",
+
+  "item.fruitsicecreamutilities.debug_stick": "Vara de Depuración",
+  "item.fruitsicecreamutilities.debug_stick.tooltip": "Haz clic derecho en bloques para obtener información de depuración",
+
+  "container.fruitsicecreamutilities.exp_core_mk1": "Núcleo de Experiencia MK-I",
+  "container.fruitsicecreamutilities.exp_core_mk2": "Núcleo de Experiencia MK-II",
+  "container.fruitsicecreamutilities.exp_core_mk3": "Núcleo de Experiencia MK-III",
+  "container.fruitsicecreamutilities.exp_core_mk4": "Núcleo de Experiencia MK-IV",
+  "container.fruitsicecreamutilities.exp_core_mk5": "Núcleo de Experiencia MK-V",
+
+  "gui.fruitsicecreamutilities.collect": "Recolectar"
+}

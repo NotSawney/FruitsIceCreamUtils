@@ -8,6 +8,13 @@
   "block.fruitsicecreamutilities.exp_core_mk5": "Experience Core MK-V",
 
   "item.fruitsicecreamutilities.debug_stick": "Debug Stick",
+  "item.fruitsicecreamutilities.debug_stick.tooltip": "Right-click blocks to get debug information",
 
-  "item.fruitsicecreamutilities.debug_stick.tooltip": "Right-click blocks to get debug information"
+  "container.fruitsicecreamutilities.exp_core_mk1": "Experience Core MK-I",
+  "container.fruitsicecreamutilities.exp_core_mk2": "Experience Core MK-II",
+  "container.fruitsicecreamutilities.exp_core_mk3": "Experience Core MK-III",
+  "container.fruitsicecreamutilities.exp_core_mk4": "Experience Core MK-IV",
+  "container.fruitsicecreamutilities.exp_core_mk5": "Experience Core MK-V",
+
+  "gui.fruitsicecreamutilities.collect": "Collect"
 }

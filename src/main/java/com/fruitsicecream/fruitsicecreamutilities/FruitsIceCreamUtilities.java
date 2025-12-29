@@ -1,9 +1,14 @@
 package com.fruitsicecream.fruitsicecreamutilities;
 
+import com.fruitsicecream.fruitsicecreamutilities.core.init.ModBlockEntities;
 import com.fruitsicecream.fruitsicecreamutilities.core.init.ModBlocks;
 import com.fruitsicecream.fruitsicecreamutilities.core.init.ModCreativeTabs;
 import com.fruitsicecream.fruitsicecreamutilities.core.init.ModItems;
+import com.fruitsicecream.fruitsicecreamutilities.core.init.ModMenuTypes;
+import com.fruitsicecream.fruitsicecreamutilities.features.experience.client.ExperienceCoreScreen;
+import com.fruitsicecream.fruitsicecreamutilities.network.ModNetworking;
 import com.mojang.logging.LogUtils;
+import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.server.ServerStartingEvent;
@@ -27,6 +32,8 @@ public class FruitsIceCreamUtilities {
         ModCreativeTabs.register(modEventBus);
         ModBlocks.register(modEventBus);
         ModItems.register(modEventBus);
+        ModBlockEntities.register(modEventBus);
+        ModMenuTypes.register(modEventBus);
 
         // Eventos del ciclo de vida
         modEventBus.addListener(this::commonSetup);
@@ -38,6 +45,7 @@ public class FruitsIceCreamUtilities {
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
+        event.enqueueWork(ModNetworking::register);
         LOGGER.info("FruitsIceCream Utilities - Common Setup completado!");
     }
 
@@ -50,6 +58,9 @@ public class FruitsIceCreamUtilities {
     public static class ClientModEvents {
         @SubscribeEvent
         public static void onClientSetup(FMLClientSetupEvent event) {
+            event.enqueueWork(() -> {
+                MenuScreens.register(ModMenuTypes.EXPERIENCE_CORE_MENU.get(), ExperienceCoreScreen::new);
+            });
             LOGGER.info("FruitsIceCream Utilities - Cliente configurado!");
         }
     }

@@ -20,14 +20,10 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.storage.loot.LootParams;
-import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.NetworkHooks;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
 
 public class ExperienceCoreBlock extends BaseEntityBlock {
     private final int tier;
@@ -90,61 +86,54 @@ public class ExperienceCoreBlock extends BaseEntityBlock {
         }
     }
 
+    // Aquí manejamos TODO el comportamiento de ruptura
     @Override
-    public List<ItemStack> getDrops(BlockState state, LootParams.Builder params) {
-        List<ItemStack> drops = super.getDrops(state, params);
+    public void playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
+        if (!level.isClientSide && level instanceof ServerLevel serverLevel) {
+            BlockEntity be = level.getBlockEntity(pos);
 
-        ItemStack tool = params.getOptionalParameter(LootContextParams.TOOL);
-        BlockEntity be = params.getOptionalParameter(LootContextParams.BLOCK_ENTITY);
-
-        if (tool != null && be instanceof ExperienceCoreBlockEntity coreEntity) {
-            boolean hasSilkTouch = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SILK_TOUCH, tool) > 0;
-
-            if (hasSilkTouch) {
-                // Con Silk Touch: dropear el bloque con XP almacenada
-                ItemStack blockDrop = new ItemStack(this);
+            if (be instanceof ExperienceCoreBlockEntity coreEntity) {
+                ItemStack heldItem = player.getMainHandItem();
+                boolean hasSilkTouch = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SILK_TOUCH, heldItem) > 0;
                 int storedXP = coreEntity.getStoredExperience();
 
-                if (storedXP > 0) {
-                    CompoundTag tag = blockDrop.getOrCreateTag();
-                    tag.putInt("StoredExperience", storedXP);
-                }
+                if (hasSilkTouch) {
+                    // CON Silk Touch: Crear item con XP almacenada en NBT
+                    if (storedXP > 0) {
+                        ItemStack drop = new ItemStack(this);
+                        CompoundTag tag = drop.getOrCreateTag();
+                        tag.putInt("StoredExperience", storedXP);
 
-                drops.clear();
-                drops.add(blockDrop);
-            } else {
-                // Sin Silk Touch: no dropear el bloque, solo XP
-                drops.clear();
+                        // Dropear el item manualmente
+                        popResource(level, pos, drop);
+                    } else {
+                        // Si no tiene XP, dropear normal
+                        popResource(level, pos, new ItemStack(this));
+                    }
+                } else {
+                    // SIN Silk Touch: Dropear XP como orbes
+                    if (storedXP > 0) {
+                        Vec3 spawnPos = new Vec3(
+                                pos.getX() + 0.5,
+                                pos.getY() + 0.5,
+                                pos.getZ() + 0.5
+                        );
+                        spawnExperienceOrbs(serverLevel, spawnPos, storedXP);
+                    }
+                    // No dropeamos el bloque
+                }
             }
         }
 
-        return drops;
+        super.playerWillDestroy(level, pos, state, player);
     }
 
     @Override
-    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
-        if (!state.is(newState.getBlock())) {
-            BlockEntity be = level.getBlockEntity(pos);
-
-            if (be instanceof ExperienceCoreBlockEntity coreEntity && !level.isClientSide) {
-                // Solo dropear XP si NO se usó Silk Touch
-                // Verificamos si ya se dropeó el bloque (con Silk Touch)
-                // Si no hay drops del bloque, entonces dropeamos la XP
-                int storedXP = coreEntity.getStoredExperience();
-
-                if (storedXP > 0) {
-                    // Spawnear orbes de experiencia
-                    Vec3 spawnPos = new Vec3(
-                            pos.getX() + 0.5,
-                            pos.getY() + 0.5,
-                            pos.getZ() + 0.5
-                    );
-                    spawnExperienceOrbs((ServerLevel) level, spawnPos, storedXP);
-                }
-            }
-        }
-
-        super.onRemove(state, level, pos, newState, isMoving);
+    public void playerDestroy(Level level, Player player, BlockPos pos, BlockState state,
+                              @Nullable BlockEntity blockEntity, ItemStack tool) {
+        // Solo llamamos al super para actualizar stats, pero no dropeamos nada
+        player.awardStat(net.minecraft.stats.Stats.BLOCK_MINED.get(this));
+        player.causeFoodExhaustion(0.005F);
     }
 
     private void spawnExperienceOrbs(ServerLevel level, Vec3 pos, int totalXP) {

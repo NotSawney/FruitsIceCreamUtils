@@ -108,9 +108,6 @@ public class ExperienceCoreBlockEntity extends BlockEntity implements MenuProvid
     }
 
     private void spawnExperienceOrbs(Level level, Vec3 pos, int totalXP) {
-        // Vanilla Minecraft spawns orbs in chunks to avoid too many entities
-        // Los orbes tienen valores estándar: 2477, 1237, 617, 307, 149, 73, 37, 17, 7, 3, 1
-
         while (totalXP > 0) {
             int orbValue = getExperienceOrbValue(totalXP);
             totalXP -= orbValue;
@@ -121,7 +118,6 @@ public class ExperienceCoreBlockEntity extends BlockEntity implements MenuProvid
     }
 
     private int getExperienceOrbValue(int remaining) {
-        // Usar los valores estándar de Minecraft para orbes de XP
         if (remaining >= 2477) return 2477;
         if (remaining >= 1237) return 1237;
         if (remaining >= 617) return 617;

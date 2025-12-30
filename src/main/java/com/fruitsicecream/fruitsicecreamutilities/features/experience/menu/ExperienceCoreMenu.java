@@ -15,22 +15,19 @@ public class ExperienceCoreMenu extends AbstractContainerMenu {
     private final ExperienceCoreBlockEntity blockEntity;
     private final ContainerData data;
 
-    // Constructor para el servidor
     public ExperienceCoreMenu(int containerId, Inventory playerInventory,
                               ExperienceCoreBlockEntity blockEntity, ContainerData data) {
         super(ModMenuTypes.EXPERIENCE_CORE_MENU.get(), containerId);
         this.blockEntity = blockEntity;
         this.data = data;
 
-        // Esto es crucial: registra los datos para sincronización automática
         addDataSlots(this.data);
     }
 
-    // Constructor para el cliente
     public ExperienceCoreMenu(int containerId, Inventory playerInventory, FriendlyByteBuf extraData) {
         this(containerId, playerInventory,
                 getBlockEntity(playerInventory, extraData),
-                new SimpleContainerData(3)); // 3 valores: storedXP, tier, xpPerHour
+                new SimpleContainerData(4)); // Ahora son 4 valores
     }
 
     private static ExperienceCoreBlockEntity getBlockEntity(Inventory playerInventory, FriendlyByteBuf extraData) {
@@ -43,7 +40,7 @@ public class ExperienceCoreMenu extends AbstractContainerMenu {
 
     @Override
     public ItemStack quickMoveStack(Player player, int i) {
-        return null;
+        return ItemStack.EMPTY;
     }
 
     @Override
@@ -60,7 +57,6 @@ public class ExperienceCoreMenu extends AbstractContainerMenu {
         return blockEntity;
     }
 
-    // Estos métodos ahora leen del ContainerData sincronizado
     public int getStoredExperience() {
         return data.get(0);
     }
@@ -71,6 +67,16 @@ public class ExperienceCoreMenu extends AbstractContainerMenu {
 
     public int getXpPerHour() {
         return data.get(2);
+    }
+
+    public int getMaxCapacity() {
+        return data.get(3);
+    }
+
+    public float getFillPercentage() {
+        int max = getMaxCapacity();
+        if (max == 0) return 0;
+        return (float) getStoredExperience() / max * 100;
     }
 
     public void collectExperience(Player player) {

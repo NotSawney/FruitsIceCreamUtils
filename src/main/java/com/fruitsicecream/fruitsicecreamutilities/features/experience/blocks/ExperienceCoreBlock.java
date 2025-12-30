@@ -28,24 +28,35 @@ import org.jetbrains.annotations.Nullable;
 public class ExperienceCoreBlock extends BaseEntityBlock {
     private final int tier;
     private final int xpPerHour;
+    private final int maxCapacity;
 
-    public ExperienceCoreBlock(Properties properties, int tier, int xpPerHour) {
+    public ExperienceCoreBlock(Properties properties, int tier, int xpPerHour, int maxCapacity) {
         super(properties);
         this.tier = tier;
         this.xpPerHour = xpPerHour;
+        this.maxCapacity = maxCapacity;
     }
 
     @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         ExperienceCoreBlockEntity be = new ExperienceCoreBlockEntity(pos, state);
-        be.setTierAndRate(tier, xpPerHour);
+        be.setTierAndRate(tier, xpPerHour, maxCapacity);
         return be;
     }
 
     @Override
     public RenderShape getRenderShape(BlockState state) {
         return RenderShape.MODEL;
+    }
+
+    @Override
+    public int getLightEmission(BlockState state, net.minecraft.world.level.BlockGetter level, BlockPos pos) {
+        BlockEntity be = level.getBlockEntity(pos);
+        if (be instanceof ExperienceCoreBlockEntity coreEntity) {
+            return coreEntity.getLightLevel();
+        }
+        return 0;
     }
 
     @Nullable
@@ -76,7 +87,6 @@ public class ExperienceCoreBlock extends BaseEntityBlock {
     public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
         super.setPlacedBy(level, pos, state, placer, stack);
 
-        // Si el item tiene NBT con experiencia almacenada, restaurarla
         if (stack.hasTag() && stack.getTag().contains("StoredExperience")) {
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof ExperienceCoreBlockEntity coreEntity) {
@@ -86,7 +96,6 @@ public class ExperienceCoreBlock extends BaseEntityBlock {
         }
     }
 
-    // Aquí manejamos TODO el comportamiento de ruptura
     @Override
     public void playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
         if (!level.isClientSide && level instanceof ServerLevel serverLevel) {
@@ -98,20 +107,15 @@ public class ExperienceCoreBlock extends BaseEntityBlock {
                 int storedXP = coreEntity.getStoredExperience();
 
                 if (hasSilkTouch) {
-                    // CON Silk Touch: Crear item con XP almacenada en NBT
                     if (storedXP > 0) {
                         ItemStack drop = new ItemStack(this);
                         CompoundTag tag = drop.getOrCreateTag();
                         tag.putInt("StoredExperience", storedXP);
-
-                        // Dropear el item manualmente
                         popResource(level, pos, drop);
                     } else {
-                        // Si no tiene XP, dropear normal
                         popResource(level, pos, new ItemStack(this));
                     }
                 } else {
-                    // SIN Silk Touch: Dropear XP como orbes
                     if (storedXP > 0) {
                         Vec3 spawnPos = new Vec3(
                                 pos.getX() + 0.5,
@@ -120,7 +124,6 @@ public class ExperienceCoreBlock extends BaseEntityBlock {
                         );
                         spawnExperienceOrbs(serverLevel, spawnPos, storedXP);
                     }
-                    // No dropeamos el bloque
                 }
             }
         }
@@ -131,7 +134,6 @@ public class ExperienceCoreBlock extends BaseEntityBlock {
     @Override
     public void playerDestroy(Level level, Player player, BlockPos pos, BlockState state,
                               @Nullable BlockEntity blockEntity, ItemStack tool) {
-        // Solo llamamos al super para actualizar stats, pero no dropeamos nada
         player.awardStat(net.minecraft.stats.Stats.BLOCK_MINED.get(this));
         player.causeFoodExhaustion(0.005F);
     }
@@ -166,5 +168,9 @@ public class ExperienceCoreBlock extends BaseEntityBlock {
 
     public int getXpPerHour() {
         return xpPerHour;
+    }
+
+    public int getMaxCapacity() {
+        return maxCapacity;
     }
 }

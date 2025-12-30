@@ -28,18 +28,16 @@ public class ExperienceCoreScreen extends AbstractContainerScreen<ExperienceCore
     protected void init() {
         super.init();
 
-        // Botón "Collect" centrado en la parte inferior
         int buttonWidth = 60;
         int buttonHeight = 20;
         int buttonX = leftPos + (imageWidth / 2) - (buttonWidth / 2);
-        int buttonY = topPos + 90; // Ajustado para la nueva altura
+        int buttonY = topPos + 90;
 
         collectButton = Button.builder(
                         Component.translatable("gui.fruitsicecreamutilities.collect"),
                         button -> {
-                            // Enviar paquete al servidor para recolectar XP
                             ModNetworking.sendToServer(new CollectExperiencePacket(menu.getBlockEntity().getBlockPos()));
-                            onClose(); // Cerrar GUI después de recolectar
+                            onClose();
                         })
                 .bounds(buttonX, buttonY, buttonWidth, buttonHeight)
                 .build();
@@ -59,23 +57,78 @@ public class ExperienceCoreScreen extends AbstractContainerScreen<ExperienceCore
         super.render(guiGraphics, mouseX, mouseY, partialTick);
         renderTooltip(guiGraphics, mouseX, mouseY);
 
-        // Renderizar el número de XP almacenado centrado
+        // XP almacenado (número grande)
         int storedXP = menu.getStoredExperience();
         String xpText = String.valueOf(storedXP);
         int textX = leftPos + (imageWidth / 2) - (font.width(xpText) / 2);
         int textY = topPos + 30;
-        guiGraphics.drawString(font, xpText, textX, textY, 0x3FFF3F, false);
 
-        // Opcional: Mostrar "XP" debajo del número
+        // Color verde si no está lleno, amarillo si está cerca, rojo si está lleno
+        int color = getXPColor(menu.getFillPercentage());
+        guiGraphics.drawString(font, xpText, textX, textY, color, false);
+
+        // Label "XP"
         String xpLabel = "XP";
         int labelX = leftPos + (imageWidth / 2) - (font.width(xpLabel) / 2);
         int labelY = topPos + 40;
         guiGraphics.drawString(font, xpLabel, labelX, labelY, 0xFFFFFF, false);
+
+        // Mostrar capacidad y porcentaje
+        int maxCap = menu.getMaxCapacity();
+        float fillPercent = menu.getFillPercentage();
+        String capacityText = String.format("%d / %d (%.1f%%)", storedXP, maxCap, fillPercent);
+        int capX = leftPos + (imageWidth / 2) - (font.width(capacityText) / 2);
+        int capY = topPos + 55;
+        guiGraphics.drawString(font, capacityText, capX, capY, 0xAAAAAA, false);
+
+        // Mensaje si está lleno
+        if (fillPercent >= 100.0f) {
+            String fullText = "FULL";
+            int fullX = leftPos + (imageWidth / 2) - (font.width(fullText) / 2);
+            int fullY = topPos + 67;
+            guiGraphics.drawString(font, fullText, fullX, fullY, 0xFF0000, false);
+        }
+
+        // Barra de progreso visual
+        renderProgressBar(guiGraphics, fillPercent);
+    }
+
+    private void renderProgressBar(GuiGraphics guiGraphics, float fillPercent) {
+        int barWidth = 140;
+        int barHeight = 4;
+        int barX = leftPos + (imageWidth / 2) - (barWidth / 2);
+        int barY = topPos + 75;
+
+        // Fondo de la barra (gris oscuro)
+        guiGraphics.fill(barX, barY, barX + barWidth, barY + barHeight, 0xFF333333);
+
+        // Barra de progreso (color según llenado)
+        int fillWidth = (int) (barWidth * (fillPercent / 100.0f));
+        int barColor = getBarColor(fillPercent);
+        guiGraphics.fill(barX, barY, barX + fillWidth, barY + barHeight, barColor);
+
+        // Borde de la barra
+        guiGraphics.fill(barX, barY, barX + barWidth, barY + 1, 0xFF000000); // Top
+        guiGraphics.fill(barX, barY + barHeight - 1, barX + barWidth, barY + barHeight, 0xFF000000); // Bottom
+        guiGraphics.fill(barX, barY, barX + 1, barY + barHeight, 0xFF000000); // Left
+        guiGraphics.fill(barX + barWidth - 1, barY, barX + barWidth, barY + barHeight, 0xFF000000); // Right
+    }
+
+    private int getXPColor(float fillPercent) {
+        if (fillPercent >= 100.0f) return 0xFF0000; // Rojo - lleno
+        if (fillPercent >= 75.0f) return 0xFFAA00; // Naranja - casi lleno
+        return 0x3FFF3F; // Verde - normal
+    }
+
+    private int getBarColor(float fillPercent) {
+        if (fillPercent >= 100.0f) return 0xFFFF0000; // Rojo brillante
+        if (fillPercent >= 75.0f) return 0xFFFFAA00; // Naranja
+        if (fillPercent >= 50.0f) return 0xFFFFFF00; // Amarillo
+        return 0xFF00FF00; // Verde
     }
 
     @Override
     protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        // Título del GUI
         guiGraphics.drawString(this.font, this.title, this.titleLabelX, this.titleLabelY, 4210752, false);
     }
 }

@@ -21,10 +21,17 @@ public class ExperienceCoreBlockEntity extends BlockEntity implements MenuProvid
     private int storedExperience = 0;
     private int tier;
     private int xpPerHour;
+    private int maxCapacity;
     private int tickCounter = 0;
-    private static final int TICKS_PER_GENERATION = 200; // Generar cada 10 segundos (200 ticks)
+    private int pushCounter = 0;
 
-    // ContainerData para sincronización cliente-servidor
+    // Intervalos de push por tier (en ticks)
+    private static final int[] PUSH_INTERVALS = {40, 35, 30, 25, 20}; // MK-I a MK-V
+    // XP por push por tier
+    private static final int[] XP_PER_PUSH = {2, 4, 6, 10, 16}; // MK-I a MK-V
+
+    private static final int TICKS_PER_GENERATION = 200; // 10 segundos
+
     protected final ContainerData dataAccess = new ContainerData() {
         @Override
         public int get(int index) {
@@ -32,6 +39,7 @@ public class ExperienceCoreBlockEntity extends BlockEntity implements MenuProvid
                 case 0 -> ExperienceCoreBlockEntity.this.storedExperience;
                 case 1 -> ExperienceCoreBlockEntity.this.tier;
                 case 2 -> ExperienceCoreBlockEntity.this.xpPerHour;
+                case 3 -> ExperienceCoreBlockEntity.this.maxCapacity;
                 default -> 0;
             };
         }
@@ -42,12 +50,13 @@ public class ExperienceCoreBlockEntity extends BlockEntity implements MenuProvid
                 case 0 -> ExperienceCoreBlockEntity.this.storedExperience = value;
                 case 1 -> ExperienceCoreBlockEntity.this.tier = value;
                 case 2 -> ExperienceCoreBlockEntity.this.xpPerHour = value;
+                case 3 -> ExperienceCoreBlockEntity.this.maxCapacity = value;
             }
         }
 
         @Override
         public int getCount() {
-            return 3;
+            return 4;
         }
     };
 
@@ -55,29 +64,74 @@ public class ExperienceCoreBlockEntity extends BlockEntity implements MenuProvid
         super(ModBlockEntities.EXPERIENCE_CORE_BE.get(), pos, state);
     }
 
-    public void setTierAndRate(int tier, int xpPerHour) {
+    public void setTierAndRate(int tier, int xpPerHour, int maxCapacity) {
         this.tier = tier;
         this.xpPerHour = xpPerHour;
+        this.maxCapacity = maxCapacity;
         setChanged();
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, ExperienceCoreBlockEntity blockEntity) {
         if (level.isClientSide) return;
 
+        // Generación de XP
         blockEntity.tickCounter++;
-
         if (blockEntity.tickCounter >= TICKS_PER_GENERATION) {
             blockEntity.tickCounter = 0;
             blockEntity.generateExperience();
         }
+
+        // Push logic (si hay XP almacenada)
+        if (blockEntity.storedExperience > 0) {
+            blockEntity.pushCounter++;
+            int pushInterval = PUSH_INTERVALS[blockEntity.tier - 1];
+
+            if (blockEntity.pushCounter >= pushInterval) {
+                blockEntity.pushCounter = 0;
+                blockEntity.tryPushToCollector();
+            }
+        }
+
+        // Actualizar nivel de luz si cambió significativamente
+        int currentLight = blockEntity.getLightLevel();
+        int previousLight = blockEntity.getBlockState().getLightEmission();
+        if (currentLight != previousLight) {
+            level.getChunkSource().getLightEngine().checkBlock(pos);
+        }
     }
 
     private void generateExperience() {
-        // Calcular XP por generación (cada 200 ticks = 10 segundos)
-        // xpPerHour / 72000 * 200 = xpPerHour / 360
+        // Solo generar si no estamos a capacidad máxima
+        if (storedExperience >= maxCapacity) {
+            return;
+        }
+
         int xpToAdd = Math.max(1, xpPerHour / 360);
-        storedExperience += xpToAdd;
+        storedExperience = Math.min(storedExperience + xpToAdd, maxCapacity);
         setChanged();
+    }
+
+    private void tryPushToCollector() {
+        // TODO: Implementar en la siguiente fase cuando tengamos collectors
+        // Por ahora, este método está listo para ser usado
+
+        // Pseudocódigo de lo que hará:
+        // 1. Buscar collector arriba o abajo
+        // 2. Si encuentra collector válido:
+        //    - Calcular XP a transferir
+        //    - Verificar si collector puede aceptar
+        //    - Transferir y reducir storedExperience
+    }
+
+    /**
+     * Calcula el nivel de luz basado en el % de llenado
+     * 0 XP = 0 luz, máxima capacidad = 15 luz
+     */
+    public int getLightLevel() {
+        if (maxCapacity == 0) return 0;
+
+        float fillPercentage = (float) storedExperience / maxCapacity;
+        return (int) (fillPercentage * 15);
     }
 
     public int getStoredExperience() {
@@ -85,24 +139,33 @@ public class ExperienceCoreBlockEntity extends BlockEntity implements MenuProvid
     }
 
     public void setStoredExperience(int amount) {
-        this.storedExperience = amount;
+        this.storedExperience = Math.min(amount, maxCapacity);
         setChanged();
+    }
+
+    public int getMaxCapacity() {
+        return maxCapacity;
+    }
+
+    public float getFillPercentage() {
+        if (maxCapacity == 0) return 0;
+        return (float) storedExperience / maxCapacity * 100;
+    }
+
+    public boolean isFull() {
+        return storedExperience >= maxCapacity;
     }
 
     public void collectExperience(Player player) {
         if (storedExperience <= 0 || level == null || level.isClientSide) return;
 
-        // Calcular posición de spawn (encima del bloque)
         Vec3 spawnPos = new Vec3(
                 worldPosition.getX() + 0.5,
                 worldPosition.getY() + 1.0,
                 worldPosition.getZ() + 0.5
         );
 
-        // Spawnear orbes de experiencia
         spawnExperienceOrbs(level, spawnPos, storedExperience);
-
-        // Limpiar el almacenamiento
         storedExperience = 0;
         setChanged();
     }
@@ -139,6 +202,14 @@ public class ExperienceCoreBlockEntity extends BlockEntity implements MenuProvid
         return xpPerHour;
     }
 
+    public int getPushInterval() {
+        return PUSH_INTERVALS[tier - 1];
+    }
+
+    public int getXpPerPush() {
+        return XP_PER_PUSH[tier - 1];
+    }
+
     public ContainerData getDataAccess() {
         return dataAccess;
     }
@@ -149,7 +220,9 @@ public class ExperienceCoreBlockEntity extends BlockEntity implements MenuProvid
         tag.putInt("StoredExperience", storedExperience);
         tag.putInt("Tier", tier);
         tag.putInt("XpPerHour", xpPerHour);
+        tag.putInt("MaxCapacity", maxCapacity);
         tag.putInt("TickCounter", tickCounter);
+        tag.putInt("PushCounter", pushCounter);
     }
 
     @Override
@@ -158,7 +231,9 @@ public class ExperienceCoreBlockEntity extends BlockEntity implements MenuProvid
         storedExperience = tag.getInt("StoredExperience");
         tier = tag.getInt("Tier");
         xpPerHour = tag.getInt("XpPerHour");
+        maxCapacity = tag.getInt("MaxCapacity");
         tickCounter = tag.getInt("TickCounter");
+        pushCounter = tag.getInt("PushCounter");
     }
 
     @Override

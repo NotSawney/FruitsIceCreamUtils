@@ -2,6 +2,8 @@ package com.fruitsicecream.fruitsicecreamutilities.core.init;
 
 import com.fruitsicecream.fruitsicecreamutilities.FruitsIceCreamUtilities;
 import com.fruitsicecream.fruitsicecreamutilities.features.debug.items.DebugStickItem;
+import com.fruitsicecream.fruitsicecreamutilities.features.debug.items.ExpAdditionerItem;
+import com.fruitsicecream.fruitsicecreamutilities.features.debug.items.ExpTransfererItem;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -29,9 +31,15 @@ public class ModItems {
     public static final RegistryObject<Item> EXPERIENCE_CORE_MK5 = ITEMS.register("exp_core_mk5",
             () -> new BlockItem(ModBlocks.EXPERIENCE_CORE_MK5.get(), new Item.Properties()));
 
-    // Debug Stick
+    // Debug Tools
     public static final RegistryObject<Item> DEBUG_STICK = ITEMS.register("debug_stick",
             () -> new DebugStickItem(new Item.Properties().stacksTo(1)));
+
+    public static final RegistryObject<Item> EXP_ADDITIONER = ITEMS.register("exp_additioner",
+            () -> new ExpAdditionerItem(new Item.Properties().stacksTo(1)));
+
+    public static final RegistryObject<Item> EXP_TRANSFERER = ITEMS.register("exp_transferer",
+            () -> new ExpTransfererItem(new Item.Properties().stacksTo(1)));
 
     public static void register(IEventBus eventBus) {
         ITEMS.register(eventBus);

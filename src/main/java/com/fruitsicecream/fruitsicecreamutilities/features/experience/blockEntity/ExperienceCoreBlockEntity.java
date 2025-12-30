@@ -1,6 +1,7 @@
 package com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEntity;
 
 import com.fruitsicecream.fruitsicecreamutilities.core.init.ModBlockEntities;
+import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.ExperienceCoreBlock;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.menu.ExperienceCoreMenu;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -12,6 +13,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -92,12 +94,8 @@ public class ExperienceCoreBlockEntity extends BlockEntity implements MenuProvid
             }
         }
 
-        // Actualizar nivel de luz si cambió significativamente
-        int currentLight = blockEntity.getLightLevel();
-        int previousLight = blockEntity.getBlockState().getLightEmission();
-        if (currentLight != previousLight) {
-            level.getChunkSource().getLightEngine().checkBlock(pos);
-        }
+        // Actualizar luz cada tick usando blockstate
+        blockEntity.updateLightLevel();
     }
 
     private void generateExperience() {
@@ -124,6 +122,28 @@ public class ExperienceCoreBlockEntity extends BlockEntity implements MenuProvid
     }
 
     /**
+     * ALTERNATIVA 3: Actualiza el blockstate con el nivel de luz
+     * Esta es la forma "vanilla" como lo hace el redstone wire
+     */
+    private void updateLightLevel() {
+        if (level == null || level.isClientSide) return;
+
+        BlockState currentState = getBlockState();
+        int currentLightInState = currentState.getValue(ExperienceCoreBlock.LIGHT_LEVEL);
+        int newLight = getLightLevel();
+
+        // Solo actualizar si el nivel de luz cambió
+        if (currentLightInState != newLight) {
+            // Cambiar el blockstate con el nuevo nivel de luz
+            BlockState newState = currentState.setValue(ExperienceCoreBlock.LIGHT_LEVEL, newLight);
+
+            // Flag 3 = UPDATE_CLIENTS | UPDATE_NEIGHBORS
+            // Esto notifica a clientes y vecinos del cambio
+            level.setBlock(worldPosition, newState, 3);
+        }
+    }
+
+    /**
      * Calcula el nivel de luz basado en el % de llenado
      * 0 XP = 0 luz, máxima capacidad = 15 luz
      */
@@ -141,6 +161,7 @@ public class ExperienceCoreBlockEntity extends BlockEntity implements MenuProvid
     public void setStoredExperience(int amount) {
         this.storedExperience = Math.min(amount, maxCapacity);
         setChanged();
+        updateLightLevel();
     }
 
     public int getMaxCapacity() {
@@ -168,6 +189,7 @@ public class ExperienceCoreBlockEntity extends BlockEntity implements MenuProvid
         spawnExperienceOrbs(level, spawnPos, storedExperience);
         storedExperience = 0;
         setChanged();
+        updateLightLevel();
     }
 
     private void spawnExperienceOrbs(Level level, Vec3 pos, int totalXP) {

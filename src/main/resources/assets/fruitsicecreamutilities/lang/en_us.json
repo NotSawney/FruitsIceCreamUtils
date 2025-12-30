@@ -9,6 +9,10 @@
 
   "item.fruitsicecreamutilities.debug_stick": "Debug Stick",
   "item.fruitsicecreamutilities.debug_stick.tooltip": "Right-click blocks to get debug information",
+  "item.fruitsicecreamutilities.exp_additioner": "Experience Additioner",
+  "item.fruitsicecreamutilities.exp_additioner.tooltip": "Shift + Right-click: Change mode | Shift + Right-click block: Add XP",
+  "item.fruitsicecreamutilities.exp_transferer": "Experience Transferer",
+  "item.fruitsicecreamutilities.exp_transferer.tooltip": "Right-click block: View transfer info (WIP)",
 
   "container.fruitsicecreamutilities.exp_core_mk1": "Experience Core MK-I",
   "container.fruitsicecreamutilities.exp_core_mk2": "Experience Core MK-II",

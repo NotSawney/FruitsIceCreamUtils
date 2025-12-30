@@ -15,17 +15,24 @@ import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.NetworkHooks;
 import org.jetbrains.annotations.Nullable;
 
 public class ExperienceCoreBlock extends BaseEntityBlock {
+    // Property para el nivel de luz (0-15) como el redstone
+    public static final IntegerProperty LIGHT_LEVEL = BlockStateProperties.LEVEL;
+
     private final int tier;
     private final int xpPerHour;
     private final int maxCapacity;
@@ -35,6 +42,13 @@ public class ExperienceCoreBlock extends BaseEntityBlock {
         this.tier = tier;
         this.xpPerHour = xpPerHour;
         this.maxCapacity = maxCapacity;
+        // Registrar el estado por defecto con luz = 0
+        this.registerDefaultState(this.stateDefinition.any().setValue(LIGHT_LEVEL, 0));
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(LIGHT_LEVEL);
     }
 
     @Nullable
@@ -52,11 +66,8 @@ public class ExperienceCoreBlock extends BaseEntityBlock {
 
     @Override
     public int getLightEmission(BlockState state, net.minecraft.world.level.BlockGetter level, BlockPos pos) {
-        BlockEntity be = level.getBlockEntity(pos);
-        if (be instanceof ExperienceCoreBlockEntity coreEntity) {
-            return coreEntity.getLightLevel();
-        }
-        return 0;
+        // Ahora la luz viene directamente del blockstate
+        return state.getValue(LIGHT_LEVEL);
     }
 
     @Nullable

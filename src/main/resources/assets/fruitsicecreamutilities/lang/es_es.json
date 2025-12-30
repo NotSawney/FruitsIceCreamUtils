@@ -9,6 +9,10 @@
 
   "item.fruitsicecreamutilities.debug_stick": "Vara de Depuración",
   "item.fruitsicecreamutilities.debug_stick.tooltip": "Haz clic derecho en bloques para obtener información de depuración",
+  "item.fruitsicecreamutilities.exp_additioner": "Adicionador de Experiencia",
+  "item.fruitsicecreamutilities.exp_additioner.tooltip": "Shift + Clic derecho: Cambiar modo | Shift + Clic derecho en bloque: Añadir XP",
+  "item.fruitsicecreamutilities.exp_transferer": "Transferidor de Experiencia",
+  "item.fruitsicecreamutilities.exp_transferer.tooltip": "Clic derecho en bloque: Ver info de transferencia (WIP)",
 
   "container.fruitsicecreamutilities.exp_core_mk1": "Núcleo de Experiencia MK-I",
   "container.fruitsicecreamutilities.exp_core_mk2": "Núcleo de Experiencia MK-II",

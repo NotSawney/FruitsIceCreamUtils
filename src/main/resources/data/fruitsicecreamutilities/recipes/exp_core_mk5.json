@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "NEN",
+    "ECE",
+    "NEN"
+  ],
+  "key": {
+    "N": {
+      "item": "minecraft:netherite_block"
+    },
+    "E": {
+      "item": "minecraft:end_crystal"
+    },
+    "C": {
+      "item": "fruitsicecreamutilities:exp_core_mk4"
+    }
+  },
+  "result": {
+    "item": "fruitsicecreamutilities:exp_core_mk5"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "DXD",
+    "XCX",
+    "DXD"
+  ],
+  "key": {
+    "D": {
+      "item": "minecraft:diamond_block"
+    },
+    "X": {
+      "item": "minecraft:experience_bottle"
+    },
+    "C": {
+      "item": "fruitsicecreamutilities:exp_core_mk3"
+    }
+  },
+  "result": {
+    "item": "fruitsicecreamutilities:exp_core_mk4"
+  }
+}

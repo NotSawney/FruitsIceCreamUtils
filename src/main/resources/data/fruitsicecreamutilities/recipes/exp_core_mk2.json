@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "IRI",
+    "RCR",
+    "IRI"
+  ],
+  "key": {
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "R": {
+      "item": "minecraft:redstone_block"
+    },
+    "C": {
+      "item": "fruitsicecreamutilities:exp_core_mk1"
+    }
+  },
+  "result": {
+    "item": "fruitsicecreamutilities:exp_core_mk2"
+  }
+}

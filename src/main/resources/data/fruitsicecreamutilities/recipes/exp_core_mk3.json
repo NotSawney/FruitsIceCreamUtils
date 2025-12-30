@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "GBG",
+    "BCB",
+    "GBG"
+  ],
+  "key": {
+    "G": {
+      "item": "minecraft:gold_block"
+    },
+    "B": {
+      "item": "minecraft:blaze_rod"
+    },
+    "C": {
+      "item": "fruitsicecreamutilities:exp_core_mk2"
+    }
+  },
+  "result": {
+    "item": "fruitsicecreamutilities:exp_core_mk3"
+  }
+}

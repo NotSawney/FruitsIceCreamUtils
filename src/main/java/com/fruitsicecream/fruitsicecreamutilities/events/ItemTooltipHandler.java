@@ -22,7 +22,9 @@ public class ItemTooltipHandler {
                 stack.is(ModBlocks.EXPERIENCE_CORE_MK2.get().asItem()) ||
                 stack.is(ModBlocks.EXPERIENCE_CORE_MK3.get().asItem()) ||
                 stack.is(ModBlocks.EXPERIENCE_CORE_MK4.get().asItem()) ||
-                stack.is(ModBlocks.EXPERIENCE_CORE_MK5.get().asItem())) {
+                stack.is(ModBlocks.EXPERIENCE_CORE_MK5.get().asItem()) ||
+                stack.is(ModBlocks.BASIC_EXPERIENCE_COLLECTOR.get().asItem()) ||
+                stack.is(ModBlocks.ADVANCED_EXPERIENCE_COLLECTOR.get().asItem())) {
 
             // Verificar si tiene XP almacenada
             if (stack.hasTag() && stack.getTag().contains("StoredExperience")) {

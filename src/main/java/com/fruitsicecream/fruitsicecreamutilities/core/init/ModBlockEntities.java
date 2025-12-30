@@ -1,6 +1,7 @@
 package com.fruitsicecream.fruitsicecreamutilities.core.init;
 
 import com.fruitsicecream.fruitsicecreamutilities.FruitsIceCreamUtilities;
+import com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEntity.ExperienceCollectorBlockEntity;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEntity.ExperienceCoreBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -20,6 +21,13 @@ public class ModBlockEntities {
                             ModBlocks.EXPERIENCE_CORE_MK3.get(),
                             ModBlocks.EXPERIENCE_CORE_MK4.get(),
                             ModBlocks.EXPERIENCE_CORE_MK5.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<ExperienceCollectorBlockEntity>> EXPERIENCE_COLLECTOR_BE =
+            BLOCK_ENTITIES.register("experience_collector_be", () ->
+                    BlockEntityType.Builder.of(ExperienceCollectorBlockEntity::new,
+                            ModBlocks.BASIC_EXPERIENCE_COLLECTOR.get(),
+                            ModBlocks.ADVANCED_EXPERIENCE_COLLECTOR.get()
                     ).build(null));
 
     public static void register(IEventBus eventBus) {

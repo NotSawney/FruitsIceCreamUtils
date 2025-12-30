@@ -1,5 +1,6 @@
 package com.fruitsicecream.fruitsicecreamutilities.features.debug.items;
 
+import com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEntity.ExperienceCollectorBlockEntity;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEntity.ExperienceCoreBlockEntity;
 import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
@@ -56,49 +57,68 @@ public class ExpAdditionerItem extends Item {
 
         BlockEntity be = level.getBlockEntity(context.getClickedPos());
 
+        // Verificar si es un Core o un Collector
         if (be instanceof ExperienceCoreBlockEntity coreEntity) {
             if (!level.isClientSide && player.isShiftKeyDown()) {
-                int currentMode = getCurrentMode(stack);
-                int xpToAdd = XP_VALUES[currentMode];
-
-                int beforeXP = coreEntity.getStoredExperience();
-                int maxCap = coreEntity.getMaxCapacity();
-
-                // Añadir XP (respetando el límite máximo)
-                int newXP = Math.min(beforeXP + xpToAdd, maxCap);
-                int actualAdded = newXP - beforeXP;
-
-                coreEntity.setStoredExperience(newXP);
-
-                // Mensaje de feedback
-                player.sendSystemMessage(Component.literal("Added ")
-                        .withStyle(ChatFormatting.GREEN)
-                        .append(Component.literal(actualAdded + " XP")
-                                .withStyle(ChatFormatting.YELLOW))
-                        .append(Component.literal(" to Experience Core")
-                                .withStyle(ChatFormatting.GREEN)));
-
-                if (actualAdded < xpToAdd) {
-                    player.sendSystemMessage(Component.literal("Core reached maximum capacity!")
-                            .withStyle(ChatFormatting.GOLD));
-                }
-
-                // Info del estado actual
-                float fillPercent = coreEntity.getFillPercentage();
-                ChatFormatting color = fillPercent >= 100.0f ? ChatFormatting.RED :
-                        fillPercent >= 75.0f ? ChatFormatting.GOLD : ChatFormatting.GREEN;
-
-                player.sendSystemMessage(Component.literal(String.format("Current: %d / %d XP (%.1f%%)",
-                                newXP, maxCap, fillPercent))
-                        .withStyle(color));
-
-                player.sendSystemMessage(Component.literal("Light Level: " + coreEntity.getLightLevel() + " / 15")
-                        .withStyle(ChatFormatting.YELLOW));
+                addXpToBlock(player, stack, coreEntity.getStoredExperience(),
+                        coreEntity.getMaxCapacity(), () -> {
+                            int currentMode = getCurrentMode(stack);
+                            int xpToAdd = XP_VALUES[currentMode];
+                            int beforeXP = coreEntity.getStoredExperience();
+                            int newXP = Math.min(beforeXP + xpToAdd, coreEntity.getMaxCapacity());
+                            coreEntity.setStoredExperience(newXP);
+                            return newXP - beforeXP;
+                        }, coreEntity::getFillPercentage, coreEntity::getLightLevel);
+            }
+            return InteractionResult.SUCCESS;
+        }
+        else if (be instanceof ExperienceCollectorBlockEntity collectorEntity) {
+            if (!level.isClientSide && player.isShiftKeyDown()) {
+                addXpToBlock(player, stack, collectorEntity.getStoredExperience(),
+                        collectorEntity.getMaxCapacity(), () -> {
+                            int currentMode = getCurrentMode(stack);
+                            int xpToAdd = XP_VALUES[currentMode];
+                            return collectorEntity.addExperience(xpToAdd);
+                        }, collectorEntity::getFillPercentage, collectorEntity::getLightLevel);
             }
             return InteractionResult.SUCCESS;
         }
 
         return InteractionResult.PASS;
+    }
+
+    private void addXpToBlock(Player player, ItemStack stack, int beforeXP, int maxCap,
+                              XpAdder adder, FillProvider fillProvider, LightProvider lightProvider) {
+        int currentMode = getCurrentMode(stack);
+        int xpToAdd = XP_VALUES[currentMode];
+
+        int actualAdded = adder.add();
+        int newXP = beforeXP + actualAdded;
+
+        // Mensaje de feedback
+        player.sendSystemMessage(Component.literal("Added ")
+                .withStyle(ChatFormatting.GREEN)
+                .append(Component.literal(actualAdded + " XP")
+                        .withStyle(ChatFormatting.YELLOW))
+                .append(Component.literal(" to Experience Block")
+                        .withStyle(ChatFormatting.GREEN)));
+
+        if (actualAdded < xpToAdd) {
+            player.sendSystemMessage(Component.literal("Block reached maximum capacity!")
+                    .withStyle(ChatFormatting.GOLD));
+        }
+
+        // Info del estado actual
+        float fillPercent = fillProvider.getFill();
+        ChatFormatting color = fillPercent >= 100.0f ? ChatFormatting.RED :
+                fillPercent >= 75.0f ? ChatFormatting.GOLD : ChatFormatting.GREEN;
+
+        player.sendSystemMessage(Component.literal(String.format("Current: %d / %d XP (%.1f%%)",
+                        newXP, maxCap, fillPercent))
+                .withStyle(color));
+
+        player.sendSystemMessage(Component.literal("Light Level: " + lightProvider.getLight() + " / 15")
+                .withStyle(ChatFormatting.YELLOW));
     }
 
     private int getCurrentMode(ItemStack stack) {
@@ -115,5 +135,20 @@ public class ExpAdditionerItem extends Item {
         CompoundTag tag = stack.getOrCreateTag();
         int mode = tag.getInt(NBT_XP_MODE);
         return XP_VALUES[mode];
+    }
+
+    @FunctionalInterface
+    private interface XpAdder {
+        int add();
+    }
+
+    @FunctionalInterface
+    private interface FillProvider {
+        float getFill();
+    }
+
+    @FunctionalInterface
+    private interface LightProvider {
+        int getLight();
     }
 }

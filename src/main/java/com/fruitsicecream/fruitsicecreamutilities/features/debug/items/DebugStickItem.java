@@ -1,6 +1,8 @@
 package com.fruitsicecream.fruitsicecreamutilities.features.debug.items;
 
+import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.ExperienceCollectorBlock;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.ExperienceCoreBlock;
+import com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEntity.ExperienceCollectorBlockEntity;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEntity.ExperienceCoreBlockEntity;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -30,71 +32,131 @@ public class DebugStickItem extends Item {
         Block block = level.getBlockState(context.getClickedPos()).getBlock();
         BlockEntity be = level.getBlockEntity(context.getClickedPos());
 
+        // Experience Core
         if (block instanceof ExperienceCoreBlock core && be instanceof ExperienceCoreBlockEntity coreEntity) {
             if (!level.isClientSide) {
-                player.sendSystemMessage(Component.literal("=== Experience Core Debug Info ===")
-                        .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
-
-                player.sendSystemMessage(Component.literal(""));
-
-                // Info básica
-                player.sendSystemMessage(Component.literal("Tier: MK-" + toRoman(core.getTier()))
-                        .withStyle(ChatFormatting.YELLOW));
-
-                // Capacidad y llenado
-                int stored = coreEntity.getStoredExperience();
-                int max = coreEntity.getMaxCapacity();
-                float percent = coreEntity.getFillPercentage();
-                ChatFormatting capacityColor = percent >= 100.0f ? ChatFormatting.RED :
-                        percent >= 75.0f ? ChatFormatting.GOLD : ChatFormatting.GREEN;
-
-                player.sendSystemMessage(Component.literal(String.format("Capacity: %d / %d XP (%.1f%%)",
-                                stored, max, percent))
-                        .withStyle(capacityColor));
-
-                if (coreEntity.isFull()) {
-                    player.sendSystemMessage(Component.literal("⚠ FULL - Not generating!")
-                            .withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
-                }
-
-                player.sendSystemMessage(Component.literal(""));
-
-                // Rates de producción
-                player.sendSystemMessage(Component.literal("Production:").withStyle(ChatFormatting.AQUA));
-                player.sendSystemMessage(Component.literal("  XP/Hour: " + core.getXpPerHour())
-                        .withStyle(ChatFormatting.WHITE));
-                player.sendSystemMessage(Component.literal("  XP/Tick: " +
-                                String.format("%.4f", core.getXpPerHour() / 72000.0))
-                        .withStyle(ChatFormatting.GRAY));
-
-                player.sendSystemMessage(Component.literal(""));
-
-                // Push mechanics
-                player.sendSystemMessage(Component.literal("Push Mechanics:").withStyle(ChatFormatting.LIGHT_PURPLE));
-                player.sendSystemMessage(Component.literal("  Push Interval: " +
-                                coreEntity.getPushInterval() + " ticks (" +
-                                String.format("%.2f", coreEntity.getPushInterval() / 20.0) + "s)")
-                        .withStyle(ChatFormatting.WHITE));
-                player.sendSystemMessage(Component.literal("  XP per Push: " +
-                                coreEntity.getXpPerPush() + " XP")
-                        .withStyle(ChatFormatting.WHITE));
-                player.sendSystemMessage(Component.literal("  Pushes/Hour: " +
-                                (72000 / coreEntity.getPushInterval()))
-                        .withStyle(ChatFormatting.GRAY));
-
-                player.sendSystemMessage(Component.literal(""));
-
-                // Nivel de luz actual
-                int lightLevel = coreEntity.getLightLevel();
-                player.sendSystemMessage(Component.literal("Light Level: " + lightLevel + " / 15")
-                        .withStyle(lightLevel > 0 ? ChatFormatting.YELLOW : ChatFormatting.DARK_GRAY));
-
-                player.sendSystemMessage(Component.literal(""));
+                showCoreDebugInfo(player, core, coreEntity);
+            }
+            return InteractionResult.SUCCESS;
+        }
+        // Experience Collector
+        else if (block instanceof ExperienceCollectorBlock collector && be instanceof ExperienceCollectorBlockEntity collectorEntity) {
+            if (!level.isClientSide) {
+                showCollectorDebugInfo(player, collector, collectorEntity);
             }
             return InteractionResult.SUCCESS;
         }
 
         return InteractionResult.PASS;
+    }
+
+    private void showCoreDebugInfo(Player player, ExperienceCoreBlock core, ExperienceCoreBlockEntity coreEntity) {
+        player.sendSystemMessage(Component.literal("=== Experience Core Debug Info ===")
+                .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+
+        player.sendSystemMessage(Component.literal(""));
+
+        // Info básica
+        player.sendSystemMessage(Component.literal("Tier: MK-" + toRoman(core.getTier()))
+                .withStyle(ChatFormatting.YELLOW));
+
+        // Capacidad y llenado
+        int stored = coreEntity.getStoredExperience();
+        int max = coreEntity.getMaxCapacity();
+        float percent = coreEntity.getFillPercentage();
+        ChatFormatting capacityColor = percent >= 100.0f ? ChatFormatting.RED :
+                percent >= 75.0f ? ChatFormatting.GOLD : ChatFormatting.GREEN;
+
+        player.sendSystemMessage(Component.literal(String.format("Capacity: %d / %d XP (%.1f%%)",
+                        stored, max, percent))
+                .withStyle(capacityColor));
+
+        if (coreEntity.isFull()) {
+            player.sendSystemMessage(Component.literal("⚠ FULL - Not generating!")
+                    .withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
+        }
+
+        player.sendSystemMessage(Component.literal(""));
+
+        // Rates de producción
+        player.sendSystemMessage(Component.literal("Production:").withStyle(ChatFormatting.AQUA));
+        player.sendSystemMessage(Component.literal("  XP/Hour: " + core.getXpPerHour())
+                .withStyle(ChatFormatting.WHITE));
+        player.sendSystemMessage(Component.literal("  XP/Tick: " +
+                        String.format("%.4f", core.getXpPerHour() / 72000.0))
+                .withStyle(ChatFormatting.GRAY));
+
+        player.sendSystemMessage(Component.literal(""));
+
+        // Push mechanics
+        player.sendSystemMessage(Component.literal("Push Mechanics:").withStyle(ChatFormatting.LIGHT_PURPLE));
+        player.sendSystemMessage(Component.literal("  Push Interval: " +
+                        coreEntity.getPushInterval() + " ticks (" +
+                        String.format("%.2f", coreEntity.getPushInterval() / 20.0) + "s)")
+                .withStyle(ChatFormatting.WHITE));
+        player.sendSystemMessage(Component.literal("  XP per Push: " +
+                        coreEntity.getXpPerPush() + " XP")
+                .withStyle(ChatFormatting.WHITE));
+        player.sendSystemMessage(Component.literal("  Pushes/Hour: " +
+                        (72000 / coreEntity.getPushInterval()))
+                .withStyle(ChatFormatting.GRAY));
+
+        player.sendSystemMessage(Component.literal(""));
+
+        // Nivel de luz actual
+        int lightLevel = coreEntity.getLightLevel();
+        player.sendSystemMessage(Component.literal("Light Level: " + lightLevel + " / 15")
+                .withStyle(lightLevel > 0 ? ChatFormatting.YELLOW : ChatFormatting.DARK_GRAY));
+
+        player.sendSystemMessage(Component.literal(""));
+    }
+
+    private void showCollectorDebugInfo(Player player, ExperienceCollectorBlock collector, ExperienceCollectorBlockEntity collectorEntity) {
+        player.sendSystemMessage(Component.literal("=== Experience Collector Debug Info ===")
+                .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD));
+
+        player.sendSystemMessage(Component.literal(""));
+
+        // Info básica
+        String tierName = collector.getTier() == 1 ? "Basic" : "Advanced";
+        player.sendSystemMessage(Component.literal("Type: " + tierName)
+                .withStyle(ChatFormatting.YELLOW));
+
+        // Capacidad y llenado
+        int stored = collectorEntity.getStoredExperience();
+        int max = collectorEntity.getMaxCapacity();
+        float percent = collectorEntity.getFillPercentage();
+        ChatFormatting capacityColor = percent >= 100.0f ? ChatFormatting.RED :
+                percent >= 75.0f ? ChatFormatting.GOLD : ChatFormatting.GREEN;
+
+        player.sendSystemMessage(Component.literal(String.format("Capacity: %d / %d XP (%.1f%%)",
+                        stored, max, percent))
+                .withStyle(capacityColor));
+
+        if (collectorEntity.isFull()) {
+            player.sendSystemMessage(Component.literal("⚠ FULL - Cannot accept more XP!")
+                    .withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
+        }
+
+        player.sendSystemMessage(Component.literal(""));
+
+        // Nivel de luz actual
+        int lightLevel = collectorEntity.getLightLevel();
+        player.sendSystemMessage(Component.literal("Light Level: " + lightLevel + " / 15")
+                .withStyle(lightLevel > 0 ? ChatFormatting.YELLOW : ChatFormatting.DARK_GRAY));
+
+        player.sendSystemMessage(Component.literal(""));
+
+        // Estado de recepción
+        player.sendSystemMessage(Component.literal("Reception Status:").withStyle(ChatFormatting.LIGHT_PURPLE));
+        player.sendSystemMessage(Component.literal("  Can Accept XP: " +
+                        (collectorEntity.isFull() ? "NO" : "YES"))
+                .withStyle(collectorEntity.isFull() ? ChatFormatting.RED : ChatFormatting.GREEN));
+        player.sendSystemMessage(Component.literal("  Space Available: " +
+                        (max - stored) + " XP")
+                .withStyle(ChatFormatting.WHITE));
+
+        player.sendSystemMessage(Component.literal(""));
     }
 
     private String toRoman(int number) {

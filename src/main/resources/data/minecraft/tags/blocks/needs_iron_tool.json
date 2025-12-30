@@ -3,6 +3,7 @@
   "values": [
     "fruitsicecreamutilities:exp_core_mk1",
     "fruitsicecreamutilities:exp_core_mk2",
-    "fruitsicecreamutilities:exp_core_mk3"
+    "fruitsicecreamutilities:exp_core_mk3",
+    "fruitsicecreamutilities:basic_exp_collector"
   ]
 }

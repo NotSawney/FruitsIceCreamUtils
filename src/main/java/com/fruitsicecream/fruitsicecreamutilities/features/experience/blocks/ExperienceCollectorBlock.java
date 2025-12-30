@@ -1,0 +1,166 @@
+package com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks;
+
+import com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEntity.ExperienceCollectorBlockEntity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.ExperienceOrb;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BaseEntityBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
+import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
+
+public class ExperienceCollectorBlock extends BaseEntityBlock {
+    public static final IntegerProperty LIGHT_LEVEL = BlockStateProperties.LEVEL;
+
+    private final int tier;
+    private final int maxCapacity;
+
+    public ExperienceCollectorBlock(Properties properties, int tier, int maxCapacity) {
+        super(properties);
+        this.tier = tier;
+        this.maxCapacity = maxCapacity;
+        this.registerDefaultState(this.stateDefinition.any().setValue(LIGHT_LEVEL, 0));
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(LIGHT_LEVEL);
+    }
+
+    @Nullable
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        ExperienceCollectorBlockEntity be = new ExperienceCollectorBlockEntity(pos, state);
+        be.setTierAndCapacity(tier, maxCapacity);
+        return be;
+    }
+
+    @Override
+    public RenderShape getRenderShape(BlockState state) {
+        return RenderShape.MODEL;
+    }
+
+    @Override
+    public int getLightEmission(BlockState state, net.minecraft.world.level.BlockGetter level, BlockPos pos) {
+        return state.getValue(LIGHT_LEVEL);
+    }
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+        if (level.isClientSide) {
+            return null;
+        }
+        return (lvl, pos, st, blockEntity) -> {
+            if (blockEntity instanceof ExperienceCollectorBlockEntity be) {
+                ExperienceCollectorBlockEntity.tick(lvl, pos, st, be);
+            }
+        };
+    }
+
+    @Override
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+
+        if (stack.hasTag() && stack.getTag().contains("StoredExperience")) {
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof ExperienceCollectorBlockEntity collectorEntity) {
+                int storedXP = stack.getTag().getInt("StoredExperience");
+                collectorEntity.setStoredExperience(storedXP);
+            }
+        }
+    }
+
+    @Override
+    public void playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
+        if (!level.isClientSide && level instanceof ServerLevel serverLevel) {
+            BlockEntity be = level.getBlockEntity(pos);
+
+            if (be instanceof ExperienceCollectorBlockEntity collectorEntity) {
+                ItemStack heldItem = player.getMainHandItem();
+                boolean hasSilkTouch = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SILK_TOUCH, heldItem) > 0;
+                int storedXP = collectorEntity.getStoredExperience();
+
+                if (hasSilkTouch) {
+                    // Con Silk Touch: dropea el bloque con NBT data
+                    if (storedXP > 0) {
+                        ItemStack drop = new ItemStack(this);
+                        CompoundTag tag = drop.getOrCreateTag();
+                        tag.putInt("StoredExperience", storedXP);
+                        popResource(level, pos, drop);
+                    } else {
+                        popResource(level, pos, new ItemStack(this));
+                    }
+                } else {
+                    // Sin Silk Touch: dropea el bloque vacío + XP como orbes
+                    popResource(level, pos, new ItemStack(this));
+
+                    if (storedXP > 0) {
+                        Vec3 spawnPos = new Vec3(
+                                pos.getX() + 0.5,
+                                pos.getY() + 0.5,
+                                pos.getZ() + 0.5
+                        );
+                        spawnExperienceOrbs(serverLevel, spawnPos, storedXP);
+                    }
+                }
+            }
+        }
+
+        super.playerWillDestroy(level, pos, state, player);
+    }
+
+    @Override
+    public void playerDestroy(Level level, Player player, BlockPos pos, BlockState state,
+                              @Nullable BlockEntity blockEntity, ItemStack tool) {
+        player.awardStat(net.minecraft.stats.Stats.BLOCK_MINED.get(this));
+        player.causeFoodExhaustion(0.005F);
+    }
+
+    private void spawnExperienceOrbs(ServerLevel level, Vec3 pos, int totalXP) {
+        while (totalXP > 0) {
+            int orbValue = getExperienceOrbValue(totalXP);
+            totalXP -= orbValue;
+
+            ExperienceOrb orb = new ExperienceOrb(level, pos.x, pos.y, pos.z, orbValue);
+            level.addFreshEntity(orb);
+        }
+    }
+
+    private int getExperienceOrbValue(int remaining) {
+        if (remaining >= 2477) return 2477;
+        if (remaining >= 1237) return 1237;
+        if (remaining >= 617) return 617;
+        if (remaining >= 307) return 307;
+        if (remaining >= 149) return 149;
+        if (remaining >= 73) return 73;
+        if (remaining >= 37) return 37;
+        if (remaining >= 17) return 17;
+        if (remaining >= 7) return 7;
+        if (remaining >= 3) return 3;
+        return 1;
+    }
+
+    public int getTier() {
+        return tier;
+    }
+
+    public int getMaxCapacity() {
+        return maxCapacity;
+    }
+}

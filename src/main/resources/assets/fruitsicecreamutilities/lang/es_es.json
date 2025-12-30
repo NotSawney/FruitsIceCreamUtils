@@ -7,6 +7,9 @@
   "block.fruitsicecreamutilities.exp_core_mk4": "Núcleo de Experiencia MK-IV",
   "block.fruitsicecreamutilities.exp_core_mk5": "Núcleo de Experiencia MK-V",
 
+  "block.fruitsicecreamutilities.basic_exp_collector": "Colector de Experiencia Básico",
+  "block.fruitsicecreamutilities.advanced_exp_collector": "Colector de Experiencia Avanzado",
+
   "item.fruitsicecreamutilities.debug_stick": "Vara de Depuración",
   "item.fruitsicecreamutilities.debug_stick.tooltip": "Haz clic derecho en bloques para obtener información de depuración",
   "item.fruitsicecreamutilities.exp_additioner": "Adicionador de Experiencia",

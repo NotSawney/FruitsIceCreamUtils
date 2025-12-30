@@ -31,6 +31,13 @@ public class ModItems {
     public static final RegistryObject<Item> EXPERIENCE_CORE_MK5 = ITEMS.register("exp_core_mk5",
             () -> new BlockItem(ModBlocks.EXPERIENCE_CORE_MK5.get(), new Item.Properties()));
 
+    // BlockItems para los Experience Collectors
+    public static final RegistryObject<Item> BASIC_EXPERIENCE_COLLECTOR = ITEMS.register("basic_exp_collector",
+            () -> new BlockItem(ModBlocks.BASIC_EXPERIENCE_COLLECTOR.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> ADVANCED_EXPERIENCE_COLLECTOR = ITEMS.register("advanced_exp_collector",
+            () -> new BlockItem(ModBlocks.ADVANCED_EXPERIENCE_COLLECTOR.get(), new Item.Properties()));
+
     // Debug Tools
     public static final RegistryObject<Item> DEBUG_STICK = ITEMS.register("debug_stick",
             () -> new DebugStickItem(new Item.Properties().stacksTo(1)));

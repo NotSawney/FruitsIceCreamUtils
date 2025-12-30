@@ -1,6 +1,7 @@
 package com.fruitsicecream.fruitsicecreamutilities.core.init;
 
 import com.fruitsicecream.fruitsicecreamutilities.FruitsIceCreamUtilities;
+import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.ExperienceCollectorBlock;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.ExperienceCoreBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
@@ -70,6 +71,29 @@ public class ModBlocks {
                     5,      // tier
                     5760,   // xpPerHour
                     34560   // maxCapacity (6h @ 5760 XP/h)
+            ));
+
+    // Experience Collector Blocks
+    // Basic: Iron pickaxe required
+    public static final RegistryObject<Block> BASIC_EXPERIENCE_COLLECTOR = BLOCKS.register("basic_exp_collector",
+            () -> new ExperienceCollectorBlock(
+                    BlockBehaviour.Properties.of()
+                            .strength(3.0f, 6.0f)
+                            .sound(SoundType.METAL)
+                            .requiresCorrectToolForDrops(),
+                    1,      // tier
+                    50000    // maxCapacity
+            ));
+
+    // Advanced: Diamond pickaxe required
+    public static final RegistryObject<Block> ADVANCED_EXPERIENCE_COLLECTOR = BLOCKS.register("advanced_exp_collector",
+            () -> new ExperienceCollectorBlock(
+                    BlockBehaviour.Properties.of()
+                            .strength(4.5f, 12.0f)
+                            .sound(SoundType.METAL)
+                            .requiresCorrectToolForDrops(),
+                    2,      // tier
+                    200000   // maxCapacity
             ));
 
     public static void register(IEventBus eventBus) {

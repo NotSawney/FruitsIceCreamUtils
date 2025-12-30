@@ -5,6 +5,8 @@
     "fruitsicecreamutilities:exp_core_mk2",
     "fruitsicecreamutilities:exp_core_mk3",
     "fruitsicecreamutilities:exp_core_mk4",
-    "fruitsicecreamutilities:exp_core_mk5"
+    "fruitsicecreamutilities:exp_core_mk5",
+    "fruitsicecreamutilities:basic_exp_collector",
+    "fruitsicecreamutilities:advanced_exp_collector"
   ]
 }

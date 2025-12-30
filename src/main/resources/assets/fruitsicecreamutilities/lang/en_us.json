@@ -7,6 +7,9 @@
   "block.fruitsicecreamutilities.exp_core_mk4": "Experience Core MK-IV",
   "block.fruitsicecreamutilities.exp_core_mk5": "Experience Core MK-V",
 
+  "block.fruitsicecreamutilities.basic_exp_collector": "Basic Experience Collector",
+  "block.fruitsicecreamutilities.advanced_exp_collector": "Advanced Experience Collector",
+
   "item.fruitsicecreamutilities.debug_stick": "Debug Stick",
   "item.fruitsicecreamutilities.debug_stick.tooltip": "Right-click blocks to get debug information",
   "item.fruitsicecreamutilities.exp_additioner": "Experience Additioner",

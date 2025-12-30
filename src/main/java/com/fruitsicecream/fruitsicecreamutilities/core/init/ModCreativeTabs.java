@@ -25,6 +25,10 @@ public class ModCreativeTabs {
                         output.accept(ModItems.EXPERIENCE_CORE_MK4.get());
                         output.accept(ModItems.EXPERIENCE_CORE_MK5.get());
 
+                        // Experience Collectors
+                        output.accept(ModItems.BASIC_EXPERIENCE_COLLECTOR.get());
+                        output.accept(ModItems.ADVANCED_EXPERIENCE_COLLECTOR.get());
+
                         // Debug Tools
                         output.accept(ModItems.DEBUG_STICK.get());
                         output.accept(ModItems.EXP_ADDITIONER.get());

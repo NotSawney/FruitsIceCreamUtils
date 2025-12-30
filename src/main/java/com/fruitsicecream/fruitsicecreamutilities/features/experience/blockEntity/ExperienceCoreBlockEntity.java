@@ -4,6 +4,7 @@ import com.fruitsicecream.fruitsicecreamutilities.core.init.ModBlockEntities;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.ExperienceCoreBlock;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.menu.ExperienceCoreMenu;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.MenuProvider;
@@ -13,7 +14,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -110,15 +110,61 @@ public class ExperienceCoreBlockEntity extends BlockEntity implements MenuProvid
     }
 
     private void tryPushToCollector() {
-        // TODO: Implementar en la siguiente fase cuando tengamos collectors
-        // Por ahora, este método está listo para ser usado
+        if (level == null) return;
 
-        // Pseudocódigo de lo que hará:
-        // 1. Buscar collector arriba o abajo
-        // 2. Si encuentra collector válido:
-        //    - Calcular XP a transferir
-        //    - Verificar si collector puede aceptar
-        //    - Transferir y reducir storedExperience
+        // Buscar collector arriba o abajo (conexión directa)
+        ExperienceCollectorBlockEntity collector = findCollectorAboveOrBelow();
+
+        if (collector != null && isCompatibleWithCollector(collector)) {
+            int xpToPush = Math.min(storedExperience, XP_PER_PUSH[tier - 1]);
+
+            if (xpToPush > 0 && collector.canAcceptXP(xpToPush)) {
+                int actuallyAdded = collector.addExperience(xpToPush);
+                storedExperience -= actuallyAdded;
+                setChanged();
+            }
+        }
+    }
+
+    /**
+     * Busca un collector directamente arriba o abajo del core
+     */
+    @Nullable
+    private ExperienceCollectorBlockEntity findCollectorAboveOrBelow() {
+        if (level == null) return null;
+
+        // Buscar arriba
+        BlockEntity beAbove = level.getBlockEntity(worldPosition.above());
+        if (beAbove instanceof ExperienceCollectorBlockEntity collector) {
+            return collector;
+        }
+
+        // Buscar abajo
+        BlockEntity beBelow = level.getBlockEntity(worldPosition.below());
+        if (beBelow instanceof ExperienceCollectorBlockEntity collector) {
+            return collector;
+        }
+
+        return null;
+    }
+
+    /**
+     * Valida si este core es compatible con el collector según su tier
+     * Basic Collector (tier 1): Solo acepta MK-I, II, III
+     * Advanced Collector (tier 2): Acepta todos (MK-I a MK-V)
+     */
+    private boolean isCompatibleWithCollector(ExperienceCollectorBlockEntity collector) {
+        int collectorTier = collector.getTier();
+
+        if (collectorTier == 1) {
+            // Basic collector: solo tiers 1-3
+            return this.tier >= 1 && this.tier <= 3;
+        } else if (collectorTier == 2) {
+            // Advanced collector: todos los tiers
+            return true;
+        }
+
+        return false;
     }
 
     /**

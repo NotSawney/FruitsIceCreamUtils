@@ -1,6 +1,7 @@
 package com.fruitsicecream.fruitsicecreamutilities.network;
 
 import com.fruitsicecream.fruitsicecreamutilities.FruitsIceCreamUtilities;
+import com.fruitsicecream.fruitsicecreamutilities.network.packets.CollectCollectorExperiencePacket;
 import com.fruitsicecream.fruitsicecreamutilities.network.packets.CollectExperiencePacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -29,6 +30,12 @@ public class ModNetworking {
                 .decoder(CollectExperiencePacket::new)
                 .encoder(CollectExperiencePacket::encode)
                 .consumerMainThread(CollectExperiencePacket::handle)
+                .add();
+
+        INSTANCE.messageBuilder(CollectCollectorExperiencePacket.class, id(), NetworkDirection.PLAY_TO_SERVER)
+                .decoder(CollectCollectorExperiencePacket::new)
+                .encoder(CollectCollectorExperiencePacket::encode)
+                .consumerMainThread(CollectCollectorExperiencePacket::handle)
                 .add();
     }
 

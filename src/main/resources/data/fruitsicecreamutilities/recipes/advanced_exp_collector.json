@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "DED",
+    "BCB",
+    "DFD"
+  ],
+  "key": {
+    "D": {
+      "item": "minecraft:diamond_block"
+    },
+    "E": {
+      "item": "minecraft:ender_pearl"
+    },
+    "B": {
+      "item": "fruitsicecreamutilities:basic_exp_collector"
+    },
+    "C": {
+      "item": "minecraft:nether_star"
+    },
+    "F": {
+      "item": "fruitsicecreamutilities:exp_core_mk5"
+    }
+  },
+  "result": {
+    "item": "fruitsicecreamutilities:advanced_exp_collector"
+  }
+}

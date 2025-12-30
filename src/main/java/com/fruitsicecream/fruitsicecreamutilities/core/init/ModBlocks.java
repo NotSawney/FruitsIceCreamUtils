@@ -82,7 +82,7 @@ public class ModBlocks {
                             .sound(SoundType.METAL)
                             .requiresCorrectToolForDrops(),
                     1,      // tier
-                    50000    // maxCapacity
+                    50000   // maxCapacity (50k)
             ));
 
     // Advanced: Diamond pickaxe required
@@ -93,7 +93,7 @@ public class ModBlocks {
                             .sound(SoundType.METAL)
                             .requiresCorrectToolForDrops(),
                     2,      // tier
-                    200000   // maxCapacity
+                    200000  // maxCapacity (200k)
             ));
 
     public static void register(IEventBus eventBus) {

@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "GHG",
+    "RCR",
+    "GHG"
+  ],
+  "key": {
+    "G": {
+      "item": "minecraft:gold_block"
+    },
+    "H": {
+      "item": "minecraft:hopper"
+    },
+    "R": {
+      "item": "minecraft:redstone"
+    },
+    "C": {
+      "item": "fruitsicecreamutilities:exp_core_mk3"
+    }
+  },
+  "result": {
+    "item": "fruitsicecreamutilities:basic_exp_collector"
+  }
+}

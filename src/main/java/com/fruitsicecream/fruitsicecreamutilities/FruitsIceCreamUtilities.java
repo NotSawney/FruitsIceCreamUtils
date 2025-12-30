@@ -5,6 +5,7 @@ import com.fruitsicecream.fruitsicecreamutilities.core.init.ModBlocks;
 import com.fruitsicecream.fruitsicecreamutilities.core.init.ModCreativeTabs;
 import com.fruitsicecream.fruitsicecreamutilities.core.init.ModItems;
 import com.fruitsicecream.fruitsicecreamutilities.core.init.ModMenuTypes;
+import com.fruitsicecream.fruitsicecreamutilities.features.experience.client.ExperienceCollectorScreen;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.client.ExperienceCoreScreen;
 import com.fruitsicecream.fruitsicecreamutilities.network.ModNetworking;
 import com.mojang.logging.LogUtils;
@@ -60,6 +61,7 @@ public class FruitsIceCreamUtilities {
         public static void onClientSetup(FMLClientSetupEvent event) {
             event.enqueueWork(() -> {
                 MenuScreens.register(ModMenuTypes.EXPERIENCE_CORE_MENU.get(), ExperienceCoreScreen::new);
+                MenuScreens.register(ModMenuTypes.EXPERIENCE_COLLECTOR_MENU.get(), ExperienceCollectorScreen::new);
             });
             LOGGER.info("FruitsIceCream Utilities - Cliente configurado!");
         }

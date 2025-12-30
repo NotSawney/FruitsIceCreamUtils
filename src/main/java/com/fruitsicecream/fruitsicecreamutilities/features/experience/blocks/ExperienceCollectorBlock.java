@@ -4,10 +4,16 @@ import com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEntit
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Tier;
+import net.minecraft.world.item.TieredItem;
+import net.minecraft.world.item.Tiers;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Level;
@@ -21,7 +27,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.common.TierSortingRegistry;
+import net.minecraftforge.network.NetworkHooks;
 import org.jetbrains.annotations.Nullable;
 
 public class ExperienceCollectorBlock extends BaseEntityBlock {
@@ -74,6 +83,17 @@ public class ExperienceCollectorBlock extends BaseEntityBlock {
     }
 
     @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
+        if (!level.isClientSide) {
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof ExperienceCollectorBlockEntity) {
+                NetworkHooks.openScreen((ServerPlayer) player, (ExperienceCollectorBlockEntity) be, pos);
+            }
+        }
+        return InteractionResult.sidedSuccess(level.isClientSide);
+    }
+
+    @Override
     public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
         super.setPlacedBy(level, pos, state, placer, stack);
 
@@ -92,24 +112,10 @@ public class ExperienceCollectorBlock extends BaseEntityBlock {
             BlockEntity be = level.getBlockEntity(pos);
 
             if (be instanceof ExperienceCollectorBlockEntity collectorEntity) {
-                ItemStack heldItem = player.getMainHandItem();
-                boolean hasSilkTouch = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SILK_TOUCH, heldItem) > 0;
                 int storedXP = collectorEntity.getStoredExperience();
 
-                if (hasSilkTouch) {
-                    // Con Silk Touch: dropea el bloque con NBT data
-                    if (storedXP > 0) {
-                        ItemStack drop = new ItemStack(this);
-                        CompoundTag tag = drop.getOrCreateTag();
-                        tag.putInt("StoredExperience", storedXP);
-                        popResource(level, pos, drop);
-                    } else {
-                        popResource(level, pos, new ItemStack(this));
-                    }
-                } else {
-                    // Sin Silk Touch: dropea el bloque vacío + XP como orbes
-                    popResource(level, pos, new ItemStack(this));
-
+                // En CREATIVO: Solo dropear XP, NUNCA el bloque
+                if (player.isCreative()) {
                     if (storedXP > 0) {
                         Vec3 spawnPos = new Vec3(
                                 pos.getX() + 0.5,
@@ -118,11 +124,94 @@ public class ExperienceCollectorBlock extends BaseEntityBlock {
                         );
                         spawnExperienceOrbs(serverLevel, spawnPos, storedXP);
                     }
+                    // No dropear el bloque en creativo
+                } else {
+                    // En SURVIVAL/ADVENTURE
+                    ItemStack heldItem = player.getMainHandItem();
+                    boolean hasSilkTouch = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SILK_TOUCH, heldItem) > 0;
+                    boolean hasCorrectTool = hasCorrectToolForTier(heldItem);
+
+                    if (hasCorrectTool) {
+                        if (hasSilkTouch) {
+                            // Con Silk Touch: dropea el bloque con NBT data (con XP)
+                            if (storedXP > 0) {
+                                ItemStack drop = new ItemStack(this);
+                                CompoundTag tag = drop.getOrCreateTag();
+                                tag.putInt("StoredExperience", storedXP);
+                                popResource(level, pos, drop);
+                            } else {
+                                popResource(level, pos, new ItemStack(this));
+                            }
+                        } else {
+                            // Sin Silk Touch: dropea bloque vacío + XP como orbes
+                            popResource(level, pos, new ItemStack(this));
+
+                            if (storedXP > 0) {
+                                Vec3 spawnPos = new Vec3(
+                                        pos.getX() + 0.5,
+                                        pos.getY() + 0.5,
+                                        pos.getZ() + 0.5
+                                );
+                                spawnExperienceOrbs(serverLevel, spawnPos, storedXP);
+                            }
+                        }
+                    } else {
+                        // Herramienta incorrecta: no dropea bloque, solo XP
+                        if (storedXP > 0) {
+                            Vec3 spawnPos = new Vec3(
+                                    pos.getX() + 0.5,
+                                    pos.getY() + 0.5,
+                                    pos.getZ() + 0.5
+                            );
+                            spawnExperienceOrbs(serverLevel, spawnPos, storedXP);
+                        }
+                    }
                 }
             }
         }
 
         super.playerWillDestroy(level, pos, state, player);
+    }
+
+    /**
+     * Verifica si la herramienta es del tier correcto para este collector
+     * Basic (tier 1): Requiere pico de hierro o superior
+     * Advanced (tier 2): Requiere pico de diamante o superior
+     */
+    private boolean hasCorrectToolForTier(ItemStack tool) {
+        if (tool.isEmpty()) return false;
+
+        // Verificar si es un pico
+        if (!tool.is(net.minecraft.tags.ItemTags.PICKAXES)) {
+            return false;
+        }
+
+        // Basic Collector: Requiere tier de hierro o superior
+        if (tier == 1) {
+            return tool.isCorrectToolForDrops(this.defaultBlockState()) ||
+                    canHarvestWithIronOrBetter(tool);
+        }
+
+        // Advanced Collector: Requiere tier de diamante o superior
+        if (tier == 2) {
+            return canHarvestWithDiamondOrBetter(tool);
+        }
+
+        return false;
+    }
+
+    private boolean canHarvestWithIronOrBetter(ItemStack tool) {
+        if (!(tool.getItem() instanceof TieredItem tieredItem)) return false;
+
+        Tier tier = tieredItem.getTier();
+        return TierSortingRegistry.getTiersLowerThan(tier).contains(Tiers.IRON) || tier == Tiers.IRON;
+    }
+
+    private boolean canHarvestWithDiamondOrBetter(ItemStack tool) {
+        if (!(tool.getItem() instanceof TieredItem tieredItem)) return false;
+
+        Tier tier = tieredItem.getTier();
+        return TierSortingRegistry.getTiersLowerThan(tier).contains(Tiers.DIAMOND) || tier == Tiers.DIAMOND;
     }
 
     @Override

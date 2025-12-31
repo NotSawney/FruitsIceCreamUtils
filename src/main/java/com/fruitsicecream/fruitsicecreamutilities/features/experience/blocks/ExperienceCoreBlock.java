@@ -38,15 +38,10 @@ public class ExperienceCoreBlock extends BaseEntityBlock {
     public static final IntegerProperty LIGHT_LEVEL = BlockStateProperties.LEVEL;
 
     private final int tier;
-    private final int xpPerHour;
-    private final int maxCapacity;
 
-    public ExperienceCoreBlock(Properties properties, int tier, int xpPerHour, int maxCapacity) {
+    public ExperienceCoreBlock(Properties properties, int tier) {
         super(properties);
         this.tier = tier;
-        this.xpPerHour = xpPerHour;
-        this.maxCapacity = maxCapacity;
-        // Registrar el estado por defecto con luz = 0
         this.registerDefaultState(this.stateDefinition.any().setValue(LIGHT_LEVEL, 0));
     }
 
@@ -59,7 +54,6 @@ public class ExperienceCoreBlock extends BaseEntityBlock {
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         ExperienceCoreBlockEntity be = new ExperienceCoreBlockEntity(pos, state);
-        be.setTierAndRate(tier, xpPerHour, maxCapacity);
         return be;
     }
 
@@ -247,13 +241,5 @@ public class ExperienceCoreBlock extends BaseEntityBlock {
 
     public int getTier() {
         return tier;
-    }
-
-    public int getXpPerHour() {
-        return xpPerHour;
-    }
-
-    public int getMaxCapacity() {
-        return maxCapacity;
     }
 }

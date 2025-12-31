@@ -1,6 +1,7 @@
 package com.fruitsicecream.fruitsicecreamutilities.core.init;
 
 import com.fruitsicecream.fruitsicecreamutilities.FruitsIceCreamUtilities;
+import com.fruitsicecream.fruitsicecreamutilities.core.config.ModConfig;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.ExperienceCollectorBlock;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.ExperienceCoreBlock;
 import net.minecraft.world.level.block.Block;
@@ -15,17 +16,14 @@ public class ModBlocks {
     public static final DeferredRegister<Block> BLOCKS =
             DeferredRegister.create(ForgeRegistries.BLOCKS, FruitsIceCreamUtilities.MOD_ID);
 
-    // Experience Core Blocks con capacidades definidas
-    // Tier 1-3: Iron pickaxe required
+    // Experience Core Blocks - Ahora usan configuración
     public static final RegistryObject<Block> EXPERIENCE_CORE_MK1 = BLOCKS.register("exp_core_mk1",
             () -> new ExperienceCoreBlock(
                     BlockBehaviour.Properties.of()
                             .strength(3.0f, 6.0f)
                             .sound(SoundType.METAL)
                             .requiresCorrectToolForDrops(),
-                    1,      // tier
-                    360,    // xpPerHour
-                    180     // maxCapacity (0.5h @ 360 XP/h)
+                    1  // tier - Los valores se obtienen de la config
             ));
 
     public static final RegistryObject<Block> EXPERIENCE_CORE_MK2 = BLOCKS.register("exp_core_mk2",
@@ -34,9 +32,7 @@ public class ModBlocks {
                             .strength(3.5f, 8.0f)
                             .sound(SoundType.METAL)
                             .requiresCorrectToolForDrops(),
-                    2,      // tier
-                    720,    // xpPerHour
-                    720     // maxCapacity (1h @ 720 XP/h)
+                    2
             ));
 
     public static final RegistryObject<Block> EXPERIENCE_CORE_MK3 = BLOCKS.register("exp_core_mk3",
@@ -45,21 +41,16 @@ public class ModBlocks {
                             .strength(4.0f, 10.0f)
                             .sound(SoundType.METAL)
                             .requiresCorrectToolForDrops(),
-                    3,      // tier
-                    1440,   // xpPerHour
-                    2160    // maxCapacity (1.5h @ 1440 XP/h)
+                    3
             ));
 
-    // Tier 4-5: Diamond pickaxe required
     public static final RegistryObject<Block> EXPERIENCE_CORE_MK4 = BLOCKS.register("exp_core_mk4",
             () -> new ExperienceCoreBlock(
                     BlockBehaviour.Properties.of()
                             .strength(4.5f, 12.0f)
                             .sound(SoundType.METAL)
                             .requiresCorrectToolForDrops(),
-                    4,      // tier
-                    2880,   // xpPerHour
-                    5760    // maxCapacity (2h @ 2880 XP/h)
+                    4
             ));
 
     public static final RegistryObject<Block> EXPERIENCE_CORE_MK5 = BLOCKS.register("exp_core_mk5",
@@ -68,32 +59,26 @@ public class ModBlocks {
                             .strength(5.0f, 15.0f)
                             .sound(SoundType.METAL)
                             .requiresCorrectToolForDrops(),
-                    5,      // tier
-                    5760,   // xpPerHour
-                    34560   // maxCapacity (6h @ 5760 XP/h)
+                    5
             ));
 
-    // Experience Collector Blocks
-    // Basic: Iron pickaxe required
+    // Experience Collector Blocks - Ahora usan configuración
     public static final RegistryObject<Block> BASIC_EXPERIENCE_COLLECTOR = BLOCKS.register("basic_exp_collector",
             () -> new ExperienceCollectorBlock(
                     BlockBehaviour.Properties.of()
                             .strength(3.0f, 6.0f)
                             .sound(SoundType.METAL)
                             .requiresCorrectToolForDrops(),
-                    1,      // tier
-                    50000   // maxCapacity (50k)
+                    1  // tier - Los valores se obtienen de la config
             ));
 
-    // Advanced: Diamond pickaxe required
     public static final RegistryObject<Block> ADVANCED_EXPERIENCE_COLLECTOR = BLOCKS.register("advanced_exp_collector",
             () -> new ExperienceCollectorBlock(
                     BlockBehaviour.Properties.of()
                             .strength(4.5f, 12.0f)
                             .sound(SoundType.METAL)
                             .requiresCorrectToolForDrops(),
-                    2,      // tier
-                    200000  // maxCapacity (200k)
+                    2
             ));
 
     public static void register(IEventBus eventBus) {

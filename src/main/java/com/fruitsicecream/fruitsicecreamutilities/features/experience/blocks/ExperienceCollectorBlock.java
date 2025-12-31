@@ -37,12 +37,10 @@ public class ExperienceCollectorBlock extends BaseEntityBlock {
     public static final IntegerProperty LIGHT_LEVEL = BlockStateProperties.LEVEL;
 
     private final int tier;
-    private final int maxCapacity;
 
-    public ExperienceCollectorBlock(Properties properties, int tier, int maxCapacity) {
+    public ExperienceCollectorBlock(Properties properties, int tier) {
         super(properties);
         this.tier = tier;
-        this.maxCapacity = maxCapacity;
         this.registerDefaultState(this.stateDefinition.any().setValue(LIGHT_LEVEL, 0));
     }
 
@@ -55,7 +53,6 @@ public class ExperienceCollectorBlock extends BaseEntityBlock {
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         ExperienceCollectorBlockEntity be = new ExperienceCollectorBlockEntity(pos, state);
-        be.setTierAndCapacity(tier, maxCapacity);
         return be;
     }
 
@@ -246,9 +243,5 @@ public class ExperienceCollectorBlock extends BaseEntityBlock {
 
     public int getTier() {
         return tier;
-    }
-
-    public int getMaxCapacity() {
-        return maxCapacity;
     }
 }

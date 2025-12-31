@@ -1,5 +1,6 @@
 package com.fruitsicecream.fruitsicecreamutilities;
 
+import com.fruitsicecream.fruitsicecreamutilities.core.config.ModConfig;
 import com.fruitsicecream.fruitsicecreamutilities.core.init.ModBlockEntities;
 import com.fruitsicecream.fruitsicecreamutilities.core.init.ModBlocks;
 import com.fruitsicecream.fruitsicecreamutilities.core.init.ModCreativeTabs;
@@ -47,7 +48,12 @@ public class FruitsIceCreamUtilities {
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(ModNetworking::register);
+
+        // Registrar configuraciones
+        ModConfig.register();
+
         LOGGER.info("FruitsIceCream Utilities - Common Setup completado!");
+        LOGGER.info("Configuration system initialized!");
     }
 
     @SubscribeEvent

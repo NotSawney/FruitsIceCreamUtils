@@ -1,8 +1,8 @@
 package com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEntity;
 
+import com.fruitsicecream.fruitsicecreamutilities.core.config.ModConfig;
 import com.fruitsicecream.fruitsicecreamutilities.core.init.ModBlockEntities;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.ExperienceCollectorBlock;
-import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.ExperienceCoreBlock;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.menu.ExperienceCollectorMenu;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -26,26 +26,22 @@ import java.util.Map;
 public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuProvider {
     private int storedExperience = 0;
     private int tier;
-    private int maxCapacity;
 
-    // Tracking de cores conectados por tier
     private final Map<Integer, Integer> connectedCoresByTier = new HashMap<>();
     private int totalConnectedCores = 0;
     private int totalProductionRate = 0;
 
-    // ContainerData extendido para sincronizar con el cliente
     protected final ContainerData dataAccess = new ContainerData() {
         @Override
         public int get(int index) {
             return switch (index) {
                 case 0 -> ExperienceCollectorBlockEntity.this.storedExperience;
                 case 1 -> ExperienceCollectorBlockEntity.this.tier;
-                // Cores conectados por tier (indices 2-6)
-                case 2 -> connectedCoresByTier.getOrDefault(1, 0); // MK-I
-                case 3 -> connectedCoresByTier.getOrDefault(2, 0); // MK-II
-                case 4 -> connectedCoresByTier.getOrDefault(3, 0); // MK-III
-                case 5 -> connectedCoresByTier.getOrDefault(4, 0); // MK-IV
-                case 6 -> connectedCoresByTier.getOrDefault(5, 0); // MK-V
+                case 2 -> connectedCoresByTier.getOrDefault(1, 0);
+                case 3 -> connectedCoresByTier.getOrDefault(2, 0);
+                case 4 -> connectedCoresByTier.getOrDefault(3, 0);
+                case 5 -> connectedCoresByTier.getOrDefault(4, 0);
+                case 6 -> connectedCoresByTier.getOrDefault(5, 0);
                 case 7 -> totalConnectedCores;
                 case 8 -> totalProductionRate;
                 default -> 0;
@@ -77,17 +73,25 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
         super(ModBlockEntities.EXPERIENCE_COLLECTOR_BE.get(), pos, state);
     }
 
+    public void setTier(int tier) {
+        this.tier = tier;
+        setChanged();
+    }
+
+    // DEPRECATED - Mantener para compatibilidad
+    @Deprecated
     public void setTierAndCapacity(int tier, int maxCapacity) {
         this.tier = tier;
-        this.maxCapacity = maxCapacity;
         setChanged();
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, ExperienceCollectorBlockEntity blockEntity) {
         if (level.isClientSide) return;
 
-        // Actualizar nivel de luz cada tick
-        blockEntity.updateLightLevel();
+        // Actualizar nivel de luz si está habilitado
+        if (ModConfig.GENERAL.enableLightEmission.get()) {
+            blockEntity.updateLightLevel();
+        }
 
         // Escanear cores conectados cada 100 ticks (5 segundos)
         if (level.getGameTime() % 100 == 0) {
@@ -95,9 +99,6 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
         }
     }
 
-    /**
-     * Escanea cores conectados directamente arriba o abajo del collector
-     */
     private void scanConnectedCores() {
         if (level == null) return;
 
@@ -105,7 +106,6 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
         totalConnectedCores = 0;
         totalProductionRate = 0;
 
-        // Escanear arriba y abajo
         scanDirection(Direction.UP);
         scanDirection(Direction.DOWN);
 
@@ -121,9 +121,7 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
         if (be instanceof ExperienceCoreBlockEntity coreEntity) {
             int coreTier = coreEntity.getTier();
 
-            // Verificar compatibilidad
             if (isCompatibleCore(coreTier)) {
-                // Incrementar contador para este tier
                 connectedCoresByTier.put(coreTier,
                         connectedCoresByTier.getOrDefault(coreTier, 0) + 1);
 
@@ -133,18 +131,8 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
         }
     }
 
-    /**
-     * Verifica si un core es compatible con este collector
-     * Basic (tier 1): Solo MK-I, II, III
-     * Advanced (tier 2): Todos
-     */
     private boolean isCompatibleCore(int coreTier) {
-        if (tier == 1) {
-            return coreTier >= 1 && coreTier <= 3;
-        } else if (tier == 2) {
-            return true;
-        }
-        return false;
+        return ModConfig.COLLECTORS.isCoreTierCompatible(tier, coreTier);
     }
 
     private void updateLightLevel() {
@@ -161,9 +149,15 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
     }
 
     public int getLightLevel() {
-        if (maxCapacity == 0) return 0;
-        float fillPercentage = (float) storedExperience / maxCapacity;
+        int maxCap = getMaxCapacity();
+        if (maxCap == 0) return 0;
+        float fillPercentage = (float) storedExperience / maxCap;
         return (int) (fillPercentage * 15);
+    }
+
+    // Getter que lee de la config
+    public int getMaxCapacity() {
+        return ModConfig.COLLECTORS.getMaxCapacity(tier);
     }
 
     public int getStoredExperience() {
@@ -171,36 +165,39 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
     }
 
     public void setStoredExperience(int amount) {
-        this.storedExperience = Math.min(amount, maxCapacity);
+        this.storedExperience = Math.min(amount, getMaxCapacity());
         setChanged();
-        updateLightLevel();
-    }
 
-    public int getMaxCapacity() {
-        return maxCapacity;
+        if (ModConfig.GENERAL.enableLightEmission.get()) {
+            updateLightLevel();
+        }
     }
 
     public float getFillPercentage() {
-        if (maxCapacity == 0) return 0;
-        return (float) storedExperience / maxCapacity * 100;
+        int maxCap = getMaxCapacity();
+        if (maxCap == 0) return 0;
+        return (float) storedExperience / maxCap * 100;
     }
 
     public boolean isFull() {
-        return storedExperience >= maxCapacity;
+        return storedExperience >= getMaxCapacity();
     }
 
     public boolean canAcceptXP(int amount) {
-        return storedExperience + amount <= maxCapacity;
+        return storedExperience + amount <= getMaxCapacity();
     }
 
     public int addExperience(int amount) {
-        int spaceAvailable = maxCapacity - storedExperience;
+        int spaceAvailable = getMaxCapacity() - storedExperience;
         int amountToAdd = Math.min(amount, spaceAvailable);
 
         if (amountToAdd > 0) {
             storedExperience += amountToAdd;
             setChanged();
-            updateLightLevel();
+
+            if (ModConfig.GENERAL.enableLightEmission.get()) {
+                updateLightLevel();
+            }
         }
 
         return amountToAdd;
@@ -239,7 +236,10 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
         spawnExperienceOrbs(level, spawnPos, storedExperience);
         storedExperience = 0;
         setChanged();
-        updateLightLevel();
+
+        if (ModConfig.GENERAL.enableLightEmission.get()) {
+            updateLightLevel();
+        }
     }
 
     private void spawnExperienceOrbs(Level level, Vec3 pos, int totalXP) {
@@ -287,9 +287,7 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
         super.saveAdditional(tag);
         tag.putInt("StoredExperience", storedExperience);
         tag.putInt("Tier", tier);
-        tag.putInt("MaxCapacity", maxCapacity);
 
-        // Guardar cores conectados
         CompoundTag coresTag = new CompoundTag();
         for (Map.Entry<Integer, Integer> entry : connectedCoresByTier.entrySet()) {
             coresTag.putInt("tier_" + entry.getKey(), entry.getValue());
@@ -304,9 +302,7 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
         super.load(tag);
         storedExperience = tag.getInt("StoredExperience");
         tier = tag.getInt("Tier");
-        maxCapacity = tag.getInt("MaxCapacity");
 
-        // Cargar cores conectados
         if (tag.contains("ConnectedCores")) {
             CompoundTag coresTag = tag.getCompound("ConnectedCores");
             connectedCoresByTier.clear();

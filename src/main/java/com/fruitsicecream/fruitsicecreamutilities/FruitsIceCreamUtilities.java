@@ -30,6 +30,9 @@ public class FruitsIceCreamUtilities {
     public FruitsIceCreamUtilities() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
+        // Registrar configs
+        ModConfig.register();
+
         // Registrar todo lo del mod
         ModCreativeTabs.register(modEventBus);
         ModBlocks.register(modEventBus);
@@ -48,9 +51,6 @@ public class FruitsIceCreamUtilities {
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(ModNetworking::register);
-
-        // Registrar configuraciones
-        ModConfig.register();
 
         LOGGER.info("FruitsIceCream Utilities - Common Setup completado!");
         LOGGER.info("Configuration system initialized!");

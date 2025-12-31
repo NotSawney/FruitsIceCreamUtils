@@ -37,14 +37,14 @@ public class DebugStickItem extends Item {
         // Experience Core
         if (block instanceof ExperienceCoreBlock core && be instanceof ExperienceCoreBlockEntity coreEntity) {
             if (!level.isClientSide) {
-                showCoreDebugInfo(player, core, coreEntity);
+                showCoreDebugInfo(player, coreEntity);
             }
             return InteractionResult.SUCCESS;
         }
         // Experience Collector
         else if (block instanceof ExperienceCollectorBlock collector && be instanceof ExperienceCollectorBlockEntity collectorEntity) {
             if (!level.isClientSide) {
-                showCollectorDebugInfo(player, collector, collectorEntity);
+                showCollectorDebugInfo(player, collectorEntity);
             }
             return InteractionResult.SUCCESS;
         }
@@ -52,14 +52,15 @@ public class DebugStickItem extends Item {
         return InteractionResult.PASS;
     }
 
-    private void showCoreDebugInfo(Player player, ExperienceCoreBlock core, ExperienceCoreBlockEntity coreEntity) {
+    private void showCoreDebugInfo(Player player, ExperienceCoreBlockEntity coreEntity) {
         player.sendSystemMessage(Component.literal("=== Experience Core Debug Info ===")
                 .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
 
         player.sendSystemMessage(Component.literal(""));
 
         // Info básica
-        player.sendSystemMessage(Component.literal("Tier: MK-" + toRoman(core.getTier()))
+        int tier = coreEntity.getTier();
+        player.sendSystemMessage(Component.literal("Tier: MK-" + toRoman(tier))
                 .withStyle(ChatFormatting.YELLOW));
 
         // Capacidad y llenado
@@ -74,33 +75,37 @@ public class DebugStickItem extends Item {
                 .withStyle(capacityColor));
 
         if (coreEntity.isFull()) {
-            player.sendSystemMessage(Component.literal("⚠ FULL - Not generating!")
+            player.sendSystemMessage(Component.literal("FULL - Not generating!")
                     .withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
         }
 
         player.sendSystemMessage(Component.literal(""));
 
-        // Rates de producción
+        // Rates de producción (obtenidos del BlockEntity, que lee de config)
+        int xpPerHour = coreEntity.getXpPerHour();
         player.sendSystemMessage(Component.literal("Production:").withStyle(ChatFormatting.AQUA));
-        player.sendSystemMessage(Component.literal("  XP/Hour: " + core.getXpPerHour())
+        player.sendSystemMessage(Component.literal("  XP/Hour: " + xpPerHour)
                 .withStyle(ChatFormatting.WHITE));
         player.sendSystemMessage(Component.literal("  XP/Tick: " +
-                        String.format("%.4f", core.getXpPerHour() / 72000.0))
+                        String.format("%.4f", xpPerHour / 72000.0))
                 .withStyle(ChatFormatting.GRAY));
 
         player.sendSystemMessage(Component.literal(""));
 
         // Push mechanics
+        int pushInterval = coreEntity.getPushInterval();
+        int xpPerPush = coreEntity.getXpPerPush();
+
         player.sendSystemMessage(Component.literal("Push Mechanics:").withStyle(ChatFormatting.LIGHT_PURPLE));
         player.sendSystemMessage(Component.literal("  Push Interval: " +
-                        coreEntity.getPushInterval() + " ticks (" +
-                        String.format("%.2f", coreEntity.getPushInterval() / 20.0) + "s)")
+                        pushInterval + " ticks (" +
+                        String.format("%.2f", pushInterval / 20.0) + "s)")
                 .withStyle(ChatFormatting.WHITE));
         player.sendSystemMessage(Component.literal("  XP per Push: " +
-                        coreEntity.getXpPerPush() + " XP")
+                        xpPerPush + " XP")
                 .withStyle(ChatFormatting.WHITE));
         player.sendSystemMessage(Component.literal("  Pushes/Hour: " +
-                        (72000 / coreEntity.getPushInterval()))
+                        (72000 / pushInterval))
                 .withStyle(ChatFormatting.GRAY));
 
         player.sendSystemMessage(Component.literal(""));
@@ -113,14 +118,15 @@ public class DebugStickItem extends Item {
         player.sendSystemMessage(Component.literal(""));
     }
 
-    private void showCollectorDebugInfo(Player player, ExperienceCollectorBlock collector, ExperienceCollectorBlockEntity collectorEntity) {
+    private void showCollectorDebugInfo(Player player, ExperienceCollectorBlockEntity collectorEntity) {
         player.sendSystemMessage(Component.literal("=== Experience Collector Debug Info ===")
                 .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD));
 
         player.sendSystemMessage(Component.literal(""));
 
         // Info básica
-        String tierName = collector.getTier() == 1 ? "Basic" : "Advanced";
+        int tier = collectorEntity.getTier();
+        String tierName = tier == 1 ? "Basic" : "Advanced";
         player.sendSystemMessage(Component.literal("Type: " + tierName)
                 .withStyle(ChatFormatting.YELLOW));
 
@@ -136,7 +142,7 @@ public class DebugStickItem extends Item {
                 .withStyle(capacityColor));
 
         if (collectorEntity.isFull()) {
-            player.sendSystemMessage(Component.literal("⚠ FULL - Cannot accept more XP!")
+            player.sendSystemMessage(Component.literal("FULL - Cannot accept more XP!")
                     .withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
         }
 
@@ -150,11 +156,11 @@ public class DebugStickItem extends Item {
             player.sendSystemMessage(Component.literal("  No cores connected")
                     .withStyle(ChatFormatting.RED));
         } else {
-            for (int tier = 1; tier <= 5; tier++) {
-                int count = coresByTier.getOrDefault(tier, 0);
+            for (int coreTier = 1; coreTier <= 5; coreTier++) {
+                int count = coresByTier.getOrDefault(coreTier, 0);
                 if (count > 0) {
-                    player.sendSystemMessage(Component.literal("  MK-" + toRoman(tier) + ": " + count + " core(s)")
-                            .withStyle(getTierChatColor(tier)));
+                    player.sendSystemMessage(Component.literal("  MK-" + toRoman(coreTier) + ": " + count + " core(s)")
+                            .withStyle(getTierChatColor(coreTier)));
                 }
             }
         }

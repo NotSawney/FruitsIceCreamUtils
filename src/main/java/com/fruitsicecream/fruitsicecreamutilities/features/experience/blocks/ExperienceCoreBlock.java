@@ -54,6 +54,7 @@ public class ExperienceCoreBlock extends BaseEntityBlock {
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         ExperienceCoreBlockEntity be = new ExperienceCoreBlockEntity(pos, state);
+        be.setTier(this.tier);
         return be;
     }
 

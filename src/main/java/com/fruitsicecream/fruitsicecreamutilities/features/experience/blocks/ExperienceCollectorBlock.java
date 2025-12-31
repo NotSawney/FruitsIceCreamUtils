@@ -114,7 +114,6 @@ public class ExperienceCollectorBlock extends BaseEntityBlock {
             if (be instanceof ExperienceCollectorBlockEntity collectorEntity) {
                 int storedXP = collectorEntity.getStoredExperience();
 
-                // En CREATIVO: Solo dropear XP, NUNCA el bloque
                 if (player.isCreative()) {
                     if (storedXP > 0) {
                         Vec3 spawnPos = new Vec3(
@@ -126,7 +125,7 @@ public class ExperienceCollectorBlock extends BaseEntityBlock {
                     }
                     // No dropear el bloque en creativo
                 } else {
-                    // En SURVIVAL/ADVENTURE
+                    // En SURVIVAL
                     ItemStack heldItem = player.getMainHandItem();
                     boolean hasSilkTouch = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SILK_TOUCH, heldItem) > 0;
                     boolean hasCorrectTool = hasCorrectToolForTier(heldItem);

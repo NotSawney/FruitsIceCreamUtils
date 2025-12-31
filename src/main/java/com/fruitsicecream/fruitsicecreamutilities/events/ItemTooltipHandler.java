@@ -17,7 +17,7 @@ public class ItemTooltipHandler {
     public static void onItemTooltip(ItemTooltipEvent event) {
         ItemStack stack = event.getItemStack();
 
-        // Verificar si es un Experience Core
+        // Verificar si es un Experience Core o Collector, perdón dios por esta aberración de código
         if (stack.is(ModBlocks.EXPERIENCE_CORE_MK1.get().asItem()) ||
                 stack.is(ModBlocks.EXPERIENCE_CORE_MK2.get().asItem()) ||
                 stack.is(ModBlocks.EXPERIENCE_CORE_MK3.get().asItem()) ||

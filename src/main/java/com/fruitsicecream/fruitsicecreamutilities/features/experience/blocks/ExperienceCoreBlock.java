@@ -34,7 +34,7 @@ import net.minecraftforge.network.NetworkHooks;
 import org.jetbrains.annotations.Nullable;
 
 public class ExperienceCoreBlock extends BaseEntityBlock {
-    // Property para el nivel de luz (0-15) como el redstone
+    // Property para el nivel de luz (0-15) como la redstone
     public static final IntegerProperty LIGHT_LEVEL = BlockStateProperties.LEVEL;
 
     private final int tier;
@@ -119,7 +119,6 @@ public class ExperienceCoreBlock extends BaseEntityBlock {
             if (be instanceof ExperienceCoreBlockEntity coreEntity) {
                 int storedXP = coreEntity.getStoredExperience();
 
-                // En CREATIVO: Solo dropear XP, NUNCA el bloque
                 if (player.isCreative()) {
                     if (storedXP > 0) {
                         Vec3 spawnPos = new Vec3(

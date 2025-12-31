@@ -27,7 +27,7 @@ public class ExperienceCollectorMenu extends AbstractContainerMenu {
     public ExperienceCollectorMenu(int containerId, Inventory playerInventory, FriendlyByteBuf extraData) {
         this(containerId, playerInventory,
                 getBlockEntity(playerInventory, extraData),
-                new SimpleContainerData(9)); // 9 valores ahora
+                new SimpleContainerData(9));
     }
 
     private static ExperienceCollectorBlockEntity getBlockEntity(Inventory playerInventory, FriendlyByteBuf extraData) {

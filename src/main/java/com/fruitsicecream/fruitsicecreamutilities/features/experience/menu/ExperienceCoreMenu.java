@@ -27,7 +27,7 @@ public class ExperienceCoreMenu extends AbstractContainerMenu {
     public ExperienceCoreMenu(int containerId, Inventory playerInventory, FriendlyByteBuf extraData) {
         this(containerId, playerInventory,
                 getBlockEntity(playerInventory, extraData),
-                new SimpleContainerData(4)); // Ahora son 4 valores
+                new SimpleContainerData(4));
     }
 
     private static ExperienceCoreBlockEntity getBlockEntity(Inventory playerInventory, FriendlyByteBuf extraData) {

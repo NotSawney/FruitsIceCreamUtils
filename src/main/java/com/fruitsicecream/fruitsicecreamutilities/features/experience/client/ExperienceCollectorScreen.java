@@ -16,11 +16,11 @@ public class ExperienceCollectorScreen extends AbstractContainerScreen<Experienc
     private static final ResourceLocation TEXTURE =
             new ResourceLocation(FruitsIceCreamUtilities.MOD_ID, "textures/gui/experience-collector-gui.png");
 
-    // Dimensiones de la GUI (ajustadas para mejor layout)
+    // Dimensiones de la GUI
     private static final int GUI_WIDTH = 230;
     private static final int GUI_HEIGHT = 170;
 
-    // Posiciones de los paneles (ajustadas para evitar solapamiento)
+    // Posiciones de los paneles
     // Panel Izquierdo - Connected Cores
     private static final int LEFT_PANEL_X = 10;
     private static final int LEFT_PANEL_Y = 28;
@@ -28,10 +28,11 @@ public class ExperienceCollectorScreen extends AbstractContainerScreen<Experienc
     private static final int LEFT_PANEL_HEIGHT = 115;
 
     // Panel Central - XP Storage
-    private static final int CENTER_PANEL_X = 82;
-    private static final int CENTER_PANEL_Y = 28;
-    private static final int CENTER_PANEL_WIDTH = 65;
-    private static final int CENTER_PANEL_HEIGHT = 115;
+    private static final int CENTER_PANEL_X = 82; // Para el que vea esta cagada y pregunte los números
+    private static final int CENTER_PANEL_Y = 28; // No sé por qué mierda están así
+    private static final int CENTER_PANEL_WIDTH = 65; // Lit solo probé en mi pantalla XD
+    private static final int CENTER_PANEL_HEIGHT = 115; // Y todos estos números eran los únicos que
+    // Se veían bien, esto cubre para todos los paneles de acá xd
 
     // Panel Derecho - Production Stats
     private static final int RIGHT_PANEL_X = 153;
@@ -52,7 +53,7 @@ public class ExperienceCollectorScreen extends AbstractContainerScreen<Experienc
     protected void init() {
         super.init();
 
-        // Botón centrado en el panel central, más pequeño para evitar overlap
+        // Botón centrado en el panel central
         int buttonWidth = 50;
         int buttonHeight = 18;
         int buttonX = leftPos + CENTER_PANEL_X + (CENTER_PANEL_WIDTH / 2) - (buttonWidth / 2);
@@ -99,7 +100,7 @@ public class ExperienceCollectorScreen extends AbstractContainerScreen<Experienc
 
         int y = panelY + 3;
 
-        // Mostrar cada tier con su icono y cantidad (texto más pequeño)
+        // Mostrar cada tier con su icono y cantidad
         int[] coreCounts = {
                 menu.getCoresMKI(),
                 menu.getCoresMKII(),
@@ -113,7 +114,6 @@ public class ExperienceCollectorScreen extends AbstractContainerScreen<Experienc
             int count = coreCounts[tier - 1];
             if (count > 0) {
                 hasCores = true;
-                // Formato más compacto para evitar overflow
                 String icon = getTierIcon(tier);
                 String text = icon + " MK-" + toRoman(tier) + " x" + count;
 
@@ -162,7 +162,7 @@ public class ExperienceCollectorScreen extends AbstractContainerScreen<Experienc
         int labelX = panelX + (CENTER_PANEL_WIDTH / 2) - (font.width(xpLabel) / 2);
         guiGraphics.drawString(font, xpLabel, labelX, xpY + 10, 0xFFFFFF, false);
 
-        // Barra de progreso (más pequeña)
+        // Barra de progreso
         int barWidth = CENTER_PANEL_WIDTH - 10;
         renderProgressBar(guiGraphics, panelX + 5, panelY + 40, barWidth, menu.getFillPercentage());
 
@@ -171,7 +171,6 @@ public class ExperienceCollectorScreen extends AbstractContainerScreen<Experienc
         int percentX = panelX + (CENTER_PANEL_WIDTH / 2) - (font.width(percentText) / 2);
         guiGraphics.drawString(font, percentText, percentX, panelY + 50, 0xAAAAAA, false);
 
-        // El botón COLLECT ya está renderizado por el widget system
         collectButton.active = storedXP > 0;
     }
 
@@ -211,7 +210,7 @@ public class ExperienceCollectorScreen extends AbstractContainerScreen<Experienc
         int max = menu.getMaxCapacity();
         float percent = menu.getFillPercentage();
 
-        // Primera línea: stored / max (más compacto)
+        // Primera línea: stored / max
         String cap1 = formatNumber(stored);
         guiGraphics.drawString(font, cap1 + " /", panelX + 6, y, 0xFFFFFF, false);
         y += 9;
@@ -262,7 +261,7 @@ public class ExperienceCollectorScreen extends AbstractContainerScreen<Experienc
 
     private String getTierIcon(int tier) {
         return switch (tier) {
-            case 1 -> "I";   // Más simple para evitar problemas de fuente
+            case 1 -> "I";
             case 2 -> "II";
             case 3 -> "III";
             case 4 -> "IV";

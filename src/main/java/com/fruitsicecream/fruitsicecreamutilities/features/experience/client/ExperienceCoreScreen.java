@@ -57,7 +57,7 @@ public class ExperienceCoreScreen extends AbstractContainerScreen<ExperienceCore
         super.render(guiGraphics, mouseX, mouseY, partialTick);
         renderTooltip(guiGraphics, mouseX, mouseY);
 
-        // XP almacenado (número grande)
+        // XP almacenado
         int storedXP = menu.getStoredExperience();
         String xpText = String.valueOf(storedXP);
         int textX = leftPos + (imageWidth / 2) - (font.width(xpText) / 2);

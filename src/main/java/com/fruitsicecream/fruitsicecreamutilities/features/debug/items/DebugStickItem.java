@@ -14,6 +14,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
+import java.util.Map;
+
 public class DebugStickItem extends Item {
 
     public DebugStickItem(Properties properties) {
@@ -140,21 +142,46 @@ public class DebugStickItem extends Item {
 
         player.sendSystemMessage(Component.literal(""));
 
+        // Cores conectados
+        player.sendSystemMessage(Component.literal("Connected Cores:").withStyle(ChatFormatting.LIGHT_PURPLE));
+
+        Map<Integer, Integer> coresByTier = collectorEntity.getConnectedCoresByTier();
+        if (coresByTier.isEmpty()) {
+            player.sendSystemMessage(Component.literal("  No cores connected")
+                    .withStyle(ChatFormatting.RED));
+        } else {
+            for (int tier = 1; tier <= 5; tier++) {
+                int count = coresByTier.getOrDefault(tier, 0);
+                if (count > 0) {
+                    player.sendSystemMessage(Component.literal("  MK-" + toRoman(tier) + ": " + count + " core(s)")
+                            .withStyle(getTierChatColor(tier)));
+                }
+            }
+        }
+
+        player.sendSystemMessage(Component.literal("  Total: " + collectorEntity.getTotalConnectedCores() + " cores")
+                .withStyle(ChatFormatting.WHITE, ChatFormatting.BOLD));
+
+        player.sendSystemMessage(Component.literal(""));
+
+        // Estadísticas de producción
+        player.sendSystemMessage(Component.literal("Production Statistics:").withStyle(ChatFormatting.GOLD));
+        player.sendSystemMessage(Component.literal("  Total Rate: " +
+                        collectorEntity.getTotalProductionRate() + " XP/h")
+                .withStyle(ChatFormatting.GREEN));
+
+        if (collectorEntity.getTotalConnectedCores() > 0) {
+            player.sendSystemMessage(Component.literal("  Avg per Core: " +
+                            collectorEntity.getAverageProductionPerCore() + " XP/h")
+                    .withStyle(ChatFormatting.YELLOW));
+        }
+
+        player.sendSystemMessage(Component.literal(""));
+
         // Nivel de luz actual
         int lightLevel = collectorEntity.getLightLevel();
         player.sendSystemMessage(Component.literal("Light Level: " + lightLevel + " / 15")
                 .withStyle(lightLevel > 0 ? ChatFormatting.YELLOW : ChatFormatting.DARK_GRAY));
-
-        player.sendSystemMessage(Component.literal(""));
-
-        // Estado de recepción
-        player.sendSystemMessage(Component.literal("Reception Status:").withStyle(ChatFormatting.LIGHT_PURPLE));
-        player.sendSystemMessage(Component.literal("  Can Accept XP: " +
-                        (collectorEntity.isFull() ? "NO" : "YES"))
-                .withStyle(collectorEntity.isFull() ? ChatFormatting.RED : ChatFormatting.GREEN));
-        player.sendSystemMessage(Component.literal("  Space Available: " +
-                        (max - stored) + " XP")
-                .withStyle(ChatFormatting.WHITE));
 
         player.sendSystemMessage(Component.literal(""));
     }
@@ -167,6 +194,17 @@ public class DebugStickItem extends Item {
             case 4 -> "IV";
             case 5 -> "V";
             default -> String.valueOf(number);
+        };
+    }
+
+    private ChatFormatting getTierChatColor(int tier) {
+        return switch (tier) {
+            case 1 -> ChatFormatting.GRAY;
+            case 2 -> ChatFormatting.WHITE;
+            case 3 -> ChatFormatting.GOLD;
+            case 4 -> ChatFormatting.AQUA;
+            case 5 -> ChatFormatting.LIGHT_PURPLE;
+            default -> ChatFormatting.WHITE;
         };
     }
 }

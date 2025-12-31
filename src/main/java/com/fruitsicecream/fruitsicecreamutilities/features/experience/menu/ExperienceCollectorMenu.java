@@ -27,7 +27,7 @@ public class ExperienceCollectorMenu extends AbstractContainerMenu {
     public ExperienceCollectorMenu(int containerId, Inventory playerInventory, FriendlyByteBuf extraData) {
         this(containerId, playerInventory,
                 getBlockEntity(playerInventory, extraData),
-                new SimpleContainerData(2)); // tier y storedXP
+                new SimpleContainerData(9)); // 9 valores ahora
     }
 
     private static ExperienceCollectorBlockEntity getBlockEntity(Inventory playerInventory, FriendlyByteBuf extraData) {
@@ -65,6 +65,35 @@ public class ExperienceCollectorMenu extends AbstractContainerMenu {
         return data.get(1);
     }
 
+    // Cores conectados por tier
+    public int getCoresMKI() {
+        return data.get(2);
+    }
+
+    public int getCoresMKII() {
+        return data.get(3);
+    }
+
+    public int getCoresMKIII() {
+        return data.get(4);
+    }
+
+    public int getCoresMKIV() {
+        return data.get(5);
+    }
+
+    public int getCoresMKV() {
+        return data.get(6);
+    }
+
+    public int getTotalConnectedCores() {
+        return data.get(7);
+    }
+
+    public int getTotalProductionRate() {
+        return data.get(8);
+    }
+
     public int getMaxCapacity() {
         return blockEntity.getMaxCapacity();
     }
@@ -73,5 +102,11 @@ public class ExperienceCollectorMenu extends AbstractContainerMenu {
         int max = getMaxCapacity();
         if (max == 0) return 0;
         return (float) getStoredExperience() / max * 100;
+    }
+
+    public int getAverageProductionPerCore() {
+        int total = getTotalConnectedCores();
+        if (total == 0) return 0;
+        return getTotalProductionRate() / total;
     }
 }

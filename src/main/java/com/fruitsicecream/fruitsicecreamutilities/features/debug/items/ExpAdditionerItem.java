@@ -15,6 +15,8 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
+import java.util.Map;
+
 public class ExpAdditionerItem extends Item {
     private static final int[] XP_VALUES = {10, 100, 1000};
     private static final String NBT_XP_MODE = "XpMode";
@@ -73,18 +75,94 @@ public class ExpAdditionerItem extends Item {
             return InteractionResult.SUCCESS;
         }
         else if (be instanceof ExperienceCollectorBlockEntity collectorEntity) {
-            if (!level.isClientSide && player.isShiftKeyDown()) {
-                addXpToBlock(player, stack, collectorEntity.getStoredExperience(),
-                        collectorEntity.getMaxCapacity(), () -> {
-                            int currentMode = getCurrentMode(stack);
-                            int xpToAdd = XP_VALUES[currentMode];
-                            return collectorEntity.addExperience(xpToAdd);
-                        }, collectorEntity::getFillPercentage, collectorEntity::getLightLevel);
+            if (!level.isClientSide) {
+                if (player.isShiftKeyDown()) {
+                    // Shift + Click = Añadir XP
+                    addXpToCollector(player, stack, collectorEntity);
+                } else {
+                    // Click normal = Mostrar info de cores conectados
+                    showCollectorInfo(player, collectorEntity);
+                }
             }
             return InteractionResult.SUCCESS;
         }
 
         return InteractionResult.PASS;
+    }
+
+    private void addXpToCollector(Player player, ItemStack stack, ExperienceCollectorBlockEntity collectorEntity) {
+        int currentMode = getCurrentMode(stack);
+        int xpToAdd = XP_VALUES[currentMode];
+        int beforeXP = collectorEntity.getStoredExperience();
+
+        int actualAdded = collectorEntity.addExperience(xpToAdd);
+        int newXP = beforeXP + actualAdded;
+
+        // Mensaje de feedback
+        player.sendSystemMessage(Component.literal("Added ")
+                .withStyle(ChatFormatting.GREEN)
+                .append(Component.literal(actualAdded + " XP")
+                        .withStyle(ChatFormatting.YELLOW))
+                .append(Component.literal(" to Collector")
+                        .withStyle(ChatFormatting.GREEN)));
+
+        if (actualAdded < xpToAdd) {
+            player.sendSystemMessage(Component.literal("Collector reached maximum capacity!")
+                    .withStyle(ChatFormatting.GOLD));
+        }
+
+        // Info del estado actual
+        float fillPercent = collectorEntity.getFillPercentage();
+        ChatFormatting color = fillPercent >= 100.0f ? ChatFormatting.RED :
+                fillPercent >= 75.0f ? ChatFormatting.GOLD : ChatFormatting.GREEN;
+
+        player.sendSystemMessage(Component.literal(String.format("Current: %s / %s XP (%.1f%%)",
+                        formatNumber(newXP), formatNumber(collectorEntity.getMaxCapacity()), fillPercent))
+                .withStyle(color));
+    }
+
+    private void showCollectorInfo(Player player, ExperienceCollectorBlockEntity collectorEntity) {
+        player.sendSystemMessage(Component.literal("=== Collector Quick Info ===")
+                .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD));
+
+        player.sendSystemMessage(Component.literal(""));
+
+        // XP Storage
+        int stored = collectorEntity.getStoredExperience();
+        int max = collectorEntity.getMaxCapacity();
+        float percent = collectorEntity.getFillPercentage();
+
+        player.sendSystemMessage(Component.literal(String.format("Storage: %s / %s (%.1f%%)",
+                        formatNumber(stored), formatNumber(max), percent))
+                .withStyle(ChatFormatting.YELLOW));
+
+        // Connected Cores Summary
+        Map<Integer, Integer> coresByTier = collectorEntity.getConnectedCoresByTier();
+        if (coresByTier.isEmpty()) {
+            player.sendSystemMessage(Component.literal("No cores connected")
+                    .withStyle(ChatFormatting.RED));
+        } else {
+            StringBuilder coresText = new StringBuilder("Cores: ");
+            boolean first = true;
+            for (int tier = 1; tier <= 5; tier++) {
+                int count = coresByTier.getOrDefault(tier, 0);
+                if (count > 0) {
+                    if (!first) coresText.append(", ");
+                    coresText.append(String.format("MK-%s x%d", toRoman(tier), count));
+                    first = false;
+                }
+            }
+            player.sendSystemMessage(Component.literal(coresText.toString())
+                    .withStyle(ChatFormatting.GREEN));
+
+            player.sendSystemMessage(Component.literal("Total Production: " +
+                            formatNumber(collectorEntity.getTotalProductionRate()) + " XP/h")
+                    .withStyle(ChatFormatting.GOLD));
+        }
+
+        player.sendSystemMessage(Component.literal(""));
+        player.sendSystemMessage(Component.literal("Shift + Click to add XP")
+                .withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
     }
 
     private void addXpToBlock(Player player, ItemStack stack, int beforeXP, int maxCap,
@@ -129,6 +207,26 @@ public class ExpAdditionerItem extends Item {
     private void setMode(ItemStack stack, int mode) {
         CompoundTag tag = stack.getOrCreateTag();
         tag.putInt(NBT_XP_MODE, mode);
+    }
+
+    private String toRoman(int number) {
+        return switch (number) {
+            case 1 -> "I";
+            case 2 -> "II";
+            case 3 -> "III";
+            case 4 -> "IV";
+            case 5 -> "V";
+            default -> String.valueOf(number);
+        };
+    }
+
+    private String formatNumber(int number) {
+        if (number >= 1000000) {
+            return String.format("%.1fM", number / 1000000.0);
+        } else if (number >= 1000) {
+            return String.format("%.1fK", number / 1000.0);
+        }
+        return String.valueOf(number);
     }
 
     public static int getXpValue(ItemStack stack) {

@@ -2,8 +2,10 @@ package com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEnti
 
 import com.fruitsicecream.fruitsicecreamutilities.core.init.ModBlockEntities;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.ExperienceCollectorBlock;
+import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.ExperienceCoreBlock;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.menu.ExperienceCollectorMenu;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.MenuProvider;
@@ -18,17 +20,34 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuProvider {
     private int storedExperience = 0;
     private int tier;
     private int maxCapacity;
 
+    // Tracking de cores conectados por tier
+    private final Map<Integer, Integer> connectedCoresByTier = new HashMap<>();
+    private int totalConnectedCores = 0;
+    private int totalProductionRate = 0;
+
+    // ContainerData extendido para sincronizar con el cliente
     protected final ContainerData dataAccess = new ContainerData() {
         @Override
         public int get(int index) {
             return switch (index) {
                 case 0 -> ExperienceCollectorBlockEntity.this.storedExperience;
                 case 1 -> ExperienceCollectorBlockEntity.this.tier;
+                // Cores conectados por tier (indices 2-6)
+                case 2 -> connectedCoresByTier.getOrDefault(1, 0); // MK-I
+                case 3 -> connectedCoresByTier.getOrDefault(2, 0); // MK-II
+                case 4 -> connectedCoresByTier.getOrDefault(3, 0); // MK-III
+                case 5 -> connectedCoresByTier.getOrDefault(4, 0); // MK-IV
+                case 6 -> connectedCoresByTier.getOrDefault(5, 0); // MK-V
+                case 7 -> totalConnectedCores;
+                case 8 -> totalProductionRate;
                 default -> 0;
             };
         }
@@ -38,12 +57,19 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
             switch (index) {
                 case 0 -> ExperienceCollectorBlockEntity.this.storedExperience = value;
                 case 1 -> ExperienceCollectorBlockEntity.this.tier = value;
+                case 2 -> connectedCoresByTier.put(1, value);
+                case 3 -> connectedCoresByTier.put(2, value);
+                case 4 -> connectedCoresByTier.put(3, value);
+                case 5 -> connectedCoresByTier.put(4, value);
+                case 6 -> connectedCoresByTier.put(5, value);
+                case 7 -> totalConnectedCores = value;
+                case 8 -> totalProductionRate = value;
             }
         }
 
         @Override
         public int getCount() {
-            return 2;
+            return 9;
         }
     };
 
@@ -63,8 +89,62 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
         // Actualizar nivel de luz cada tick
         blockEntity.updateLightLevel();
 
-        // TODO: Network discovery cada 100 ticks (5 segundos)
-        // Buscar cores conectados directamente o via pipelines
+        // Escanear cores conectados cada 100 ticks (5 segundos)
+        if (level.getGameTime() % 100 == 0) {
+            blockEntity.scanConnectedCores();
+        }
+    }
+
+    /**
+     * Escanea cores conectados directamente arriba o abajo del collector
+     */
+    private void scanConnectedCores() {
+        if (level == null) return;
+
+        connectedCoresByTier.clear();
+        totalConnectedCores = 0;
+        totalProductionRate = 0;
+
+        // Escanear arriba y abajo
+        scanDirection(Direction.UP);
+        scanDirection(Direction.DOWN);
+
+        setChanged();
+    }
+
+    private void scanDirection(Direction direction) {
+        if (level == null) return;
+
+        BlockPos checkPos = worldPosition.relative(direction);
+        BlockEntity be = level.getBlockEntity(checkPos);
+
+        if (be instanceof ExperienceCoreBlockEntity coreEntity) {
+            int coreTier = coreEntity.getTier();
+
+            // Verificar compatibilidad
+            if (isCompatibleCore(coreTier)) {
+                // Incrementar contador para este tier
+                connectedCoresByTier.put(coreTier,
+                        connectedCoresByTier.getOrDefault(coreTier, 0) + 1);
+
+                totalConnectedCores++;
+                totalProductionRate += coreEntity.getXpPerHour();
+            }
+        }
+    }
+
+    /**
+     * Verifica si un core es compatible con este collector
+     * Basic (tier 1): Solo MK-I, II, III
+     * Advanced (tier 2): Todos
+     */
+    private boolean isCompatibleCore(int coreTier) {
+        if (tier == 1) {
+            return coreTier >= 1 && coreTier <= 3;
+        } else if (tier == 2) {
+            return true;
+        }
+        return false;
     }
 
     private void updateLightLevel() {
@@ -82,7 +162,6 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
 
     public int getLightLevel() {
         if (maxCapacity == 0) return 0;
-
         float fillPercentage = (float) storedExperience / maxCapacity;
         return (int) (fillPercentage * 15);
     }
@@ -129,6 +208,23 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
 
     public int getTier() {
         return tier;
+    }
+
+    public Map<Integer, Integer> getConnectedCoresByTier() {
+        return new HashMap<>(connectedCoresByTier);
+    }
+
+    public int getTotalConnectedCores() {
+        return totalConnectedCores;
+    }
+
+    public int getTotalProductionRate() {
+        return totalProductionRate;
+    }
+
+    public int getAverageProductionPerCore() {
+        if (totalConnectedCores == 0) return 0;
+        return totalProductionRate / totalConnectedCores;
     }
 
     public void collectExperience(Player player) {
@@ -192,6 +288,15 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
         tag.putInt("StoredExperience", storedExperience);
         tag.putInt("Tier", tier);
         tag.putInt("MaxCapacity", maxCapacity);
+
+        // Guardar cores conectados
+        CompoundTag coresTag = new CompoundTag();
+        for (Map.Entry<Integer, Integer> entry : connectedCoresByTier.entrySet()) {
+            coresTag.putInt("tier_" + entry.getKey(), entry.getValue());
+        }
+        tag.put("ConnectedCores", coresTag);
+        tag.putInt("TotalCores", totalConnectedCores);
+        tag.putInt("TotalProduction", totalProductionRate);
     }
 
     @Override
@@ -200,5 +305,19 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
         storedExperience = tag.getInt("StoredExperience");
         tier = tag.getInt("Tier");
         maxCapacity = tag.getInt("MaxCapacity");
+
+        // Cargar cores conectados
+        if (tag.contains("ConnectedCores")) {
+            CompoundTag coresTag = tag.getCompound("ConnectedCores");
+            connectedCoresByTier.clear();
+            for (int i = 1; i <= 5; i++) {
+                String key = "tier_" + i;
+                if (coresTag.contains(key)) {
+                    connectedCoresByTier.put(i, coresTag.getInt(key));
+                }
+            }
+        }
+        totalConnectedCores = tag.getInt("TotalCores");
+        totalProductionRate = tag.getInt("TotalProduction");
     }
 }

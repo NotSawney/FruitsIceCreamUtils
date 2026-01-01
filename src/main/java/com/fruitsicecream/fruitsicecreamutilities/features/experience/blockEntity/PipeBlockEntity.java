@@ -5,6 +5,7 @@ import com.fruitsicecream.fruitsicecreamutilities.core.init.ModBlockEntities;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.ExperienceCollectorBlock;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.ExperienceCoreBlock;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.base.BasePipeBlock;
+import com.fruitsicecream.fruitsicecreamutilities.util.SaveStateTracker;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -27,20 +28,27 @@ public class PipeBlockEntity extends BlockEntity {
 
     public static void tick(Level level, BlockPos pos, BlockState state, PipeBlockEntity blockEntity) {
         if (level.isClientSide) return;
+        if (SaveStateTracker.isSaving()) {
+            return;
+        }
 
         // Primero verificamos si somos una "Tubería de Salida" (conectada a un Collector).
-        // Si no estamos conectados a un Collector, NO hacemos escaneos.
-        // Simplemente existimos para ser encontrados por otras tuberías.
-
         boolean isConnectedToCollector = blockEntity.hasAdjacentCollector();
 
         if (isConnectedToCollector) {
             // Solo si somos útiles, verificamos si necesitamos actualizar la red
             if (blockEntity.needsNetworkUpdate || blockEntity.cachedNetwork == null) {
                 if (blockEntity.cooldownTicks <= 0) {
-                    blockEntity.scanNetwork();
-                    blockEntity.needsNetworkUpdate = false;
-                    blockEntity.cooldownTicks = 100; // Aumentado a 5 segundos para estabilidad
+                    try {
+                        blockEntity.scanNetwork();
+                        blockEntity.needsNetworkUpdate = false;
+                        blockEntity.cooldownTicks = 100;
+                    } catch (Exception e) {
+                        // Si falla el escaneo, no crashear - solo loguear y resetear
+                        blockEntity.cachedNetwork = null;
+                        blockEntity.needsNetworkUpdate = true;
+                        blockEntity.cooldownTicks = 200; // Cooldown más largo tras error
+                    }
                 } else {
                     blockEntity.cooldownTicks--;
                 }
@@ -48,14 +56,18 @@ public class PipeBlockEntity extends BlockEntity {
 
             // Ejecutar lógica de transferencia
             if (blockEntity.cachedNetwork != null && blockEntity.cachedNetwork.isValid()) {
-                blockEntity.tryTransferExperience();
+                try {
+                    blockEntity.tryTransferExperience();
+                } catch (Exception e) {
+                    // Si falla la transferencia, invalidar la red para forzar re-escaneo
+                    blockEntity.markNetworkDirty();
+                }
             }
         } else {
-            // Si dejamos de estar conectados a un collector, limpiamos la cache para ahorrar RAM
+            // Si dejamos de estar conectados a un collector, limpiamos la cache
             if (blockEntity.cachedNetwork != null) {
                 blockEntity.cachedNetwork = null;
             }
-            // Reseteamos el flag, ya que no vamos a hacer nada de todas formas
             blockEntity.needsNetworkUpdate = false;
         }
     }

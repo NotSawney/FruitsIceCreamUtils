@@ -36,8 +36,15 @@ public class PipeNetworkScanner {
         int maxDistance = ModConfig.PIPES.getMaxDistance(tier);
         int maxCores = ModConfig.PIPES.getMaxCores(tier);
 
-        while (!queue.isEmpty() && visitedPipes.size() < MAX_SCAN_SIZE) {
+        int iterations = 0;
+        final int MAX_ITERATIONS = 10000; // Prevenir loops infinitos
+
+        while (!queue.isEmpty() && visitedPipes.size() < MAX_SCAN_SIZE && iterations < MAX_ITERATIONS) {
+            iterations++;
+
             ScanNode current = queue.poll();
+            if (current == null) break; // Safety check
+
             BlockPos pos = current.pos;
             int distance = current.distance;
 
@@ -49,6 +56,9 @@ public class PipeNetworkScanner {
             // Explorar vecinos
             for (Direction dir : Direction.values()) {
                 BlockPos neighborPos = pos.relative(dir);
+
+                // Safety: verificar que no sea la misma posición
+                if (neighborPos.equals(pos)) continue;
 
                 if (!level.isLoaded(neighborPos)) {
                     continue;
@@ -64,7 +74,7 @@ public class PipeNetworkScanner {
                 }
                 // Si es un Core, agregarlo a la lista
                 else if (neighborBlock instanceof ExperienceCoreBlock core) {
-                    if (isCoreTierCompatible(tier, core.getTier())) {
+                    if (isCoreTierCompatible(tier, core.getTier()) && !connectedCores.contains(neighborPos)) {
                         connectedCores.add(neighborPos);
                     }
                 }

@@ -1,14 +1,12 @@
 package com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.base;
 
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.RenderShape;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.BaseEntityBlock;
 
 /**
  * Clase base para todas las tuberías de experiencia.
  * Maneja la lógica común de conexión y compatibilidad de tiers.
  */
-public abstract class BasePipeBlock extends Block {
+public abstract class BasePipeBlock extends BaseEntityBlock {
     private final int tier;
 
     protected BasePipeBlock(Properties properties, int tier) {
@@ -18,11 +16,6 @@ public abstract class BasePipeBlock extends Block {
 
     public int getTier() {
         return tier;
-    }
-
-    @Override
-    public RenderShape getRenderShape(BlockState state) {
-        return RenderShape.MODEL;
     }
 
     /**

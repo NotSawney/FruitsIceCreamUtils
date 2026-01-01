@@ -288,6 +288,112 @@ public class ModConfig {
     }
 
     // ========================================
+    // PIPES CONFIGURATION
+    // ========================================
+
+    public static class PipesConfig {
+        // Flow Rate Settings
+        public final ForgeConfigSpec.BooleanValue limitedFlowrate;
+
+        // Gold Pipe (Tier 1)
+        public final ForgeConfigSpec.IntValue goldMaxDistance;
+        public final ForgeConfigSpec.IntValue goldMaxCores;
+        public final ForgeConfigSpec.IntValue goldFlowRate; // XP/tick cuando limitedFlowrate=true
+        public final ForgeConfigSpec.ConfigValue<String> goldRequiredTool;
+
+        // Diamond Pipe (Tier 2)
+        public final ForgeConfigSpec.IntValue diamondMaxDistance;
+        public final ForgeConfigSpec.IntValue diamondMaxCores;
+        public final ForgeConfigSpec.IntValue diamondFlowRate; // XP/tick cuando limitedFlowrate=true
+        public final ForgeConfigSpec.ConfigValue<String> diamondRequiredTool;
+
+        PipesConfig(ForgeConfigSpec.Builder builder) {
+            builder.comment("Pipe Configuration")
+                    .comment("Configure pipe behavior, limits, and requirements")
+                    .push("pipes");
+
+            // Flow Rate
+            builder.comment("Flow Rate Settings").push("flowrate");
+
+            limitedFlowrate = builder
+                    .comment("If true, pipes have limited XP transfer rate per tick")
+                    .comment("If false, pipes transfer all available XP instantly")
+                    .define("limitedFlowrate", false);
+
+            builder.pop();
+
+            // Gold Pipe
+            builder.comment("Gold-Inlaid Pipe (Tier 1)").push("gold");
+
+            goldMaxDistance = builder
+                    .comment("Maximum distance (in blocks) from a Core to a Collector")
+                    .comment("Set to -1 for unlimited distance")
+                    .defineInRange("maxDistance", 10, -1, 256);
+
+            goldMaxCores = builder
+                    .comment("Maximum number of cores that can connect to a single Collector")
+                    .comment("Set to -1 for unlimited cores")
+                    .defineInRange("maxCores", 10, -1, 1000);
+
+            goldFlowRate = builder
+                    .comment("XP transfer rate per tick (only when limitedFlowrate=true)")
+                    .comment("20 ticks = 1 second, so 10 XP/tick = 200 XP/s = 12,000 XP/min")
+                    .defineInRange("flowRate", 10, 1, 1000);
+
+            goldRequiredTool = builder
+                    .comment("Minimum tool tier required to break this pipe")
+                    .comment("Options: WOOD, STONE, IRON, DIAMOND, NETHERITE, GOLD")
+                    .define("requiredTool", "IRON");
+
+            builder.pop();
+
+            // Diamond Pipe
+            builder.comment("Diamond-Studded Pipeline (Tier 2)").push("diamond");
+
+            diamondMaxDistance = builder
+                    .comment("Maximum distance (in blocks) from a Core to a Collector")
+                    .comment("Set to -1 for unlimited distance")
+                    .defineInRange("maxDistance", -1, -1, 256);
+
+            diamondMaxCores = builder
+                    .comment("Maximum number of cores that can connect to a single Collector")
+                    .comment("Set to -1 for unlimited cores")
+                    .defineInRange("maxCores", -1, -1, 1000);
+
+            diamondFlowRate = builder
+                    .comment("XP transfer rate per tick (only when limitedFlowrate=true)")
+                    .comment("20 ticks = 1 second, so 50 XP/tick = 1,000 XP/s = 60,000 XP/min")
+                    .defineInRange("flowRate", 50, 1, 1000);
+
+            diamondRequiredTool = builder
+                    .comment("Minimum tool tier required to break this pipe")
+                    .comment("Options: WOOD, STONE, IRON, DIAMOND, NETHERITE, GOLD")
+                    .define("requiredTool", "DIAMOND");
+
+            builder.pop();
+
+            builder.pop(); // pipes
+        }
+
+        // Helper methods
+        public int getMaxDistance(int tier) {
+            return tier == 1 ? goldMaxDistance.get() : diamondMaxDistance.get();
+        }
+
+        public int getMaxCores(int tier) {
+            return tier == 1 ? goldMaxCores.get() : diamondMaxCores.get();
+        }
+
+        public int getFlowRate(int tier) {
+            return tier == 1 ? goldFlowRate.get() : diamondFlowRate.get();
+        }
+
+        public String getRequiredTool(int tier) {
+            return tier == 1 ? goldRequiredTool.get() : diamondRequiredTool.get();
+        }
+    }
+
+    // ========================================
     // GENERAL CONFIGURATION
     // ========================================
 
@@ -325,6 +431,7 @@ public class ModConfig {
     public static final ExperienceCores CORES;
     public static final ExperienceCollectors COLLECTORS;
     public static final General GENERAL;
+    public static final PipesConfig PIPES;
 
     static {
         ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
@@ -332,6 +439,7 @@ public class ModConfig {
         CORES = new ExperienceCores(builder);
         COLLECTORS = new ExperienceCollectors(builder);
         GENERAL = new General(builder);
+        PIPES = new PipesConfig(builder);
 
         COMMON_SPEC = builder.build();
     }

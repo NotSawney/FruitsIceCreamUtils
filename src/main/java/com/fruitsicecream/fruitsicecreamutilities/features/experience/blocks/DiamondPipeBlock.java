@@ -1,20 +1,33 @@
 package com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks;
 
+import com.fruitsicecream.fruitsicecreamutilities.core.config.ModConfig;
+import com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEntity.PipeBlockEntity;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.base.BasePipeBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Tier;
+import net.minecraft.world.item.TieredItem;
+import net.minecraft.world.item.Tiers;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraftforge.common.TierSortingRegistry;
+import org.jetbrains.annotations.Nullable;
 
 public class DiamondPipeBlock extends BasePipeBlock {
-    // Propiedades de conexión (iguales que GoldPipe)
     public static final BooleanProperty NORTH = BooleanProperty.create("north");
     public static final BooleanProperty SOUTH = BooleanProperty.create("south");
     public static final BooleanProperty EAST = BooleanProperty.create("east");
@@ -22,7 +35,6 @@ public class DiamondPipeBlock extends BasePipeBlock {
     public static final BooleanProperty UP = BooleanProperty.create("up");
     public static final BooleanProperty DOWN = BooleanProperty.create("down");
 
-    // Formas (iguales que GoldPipe)
     private static final VoxelShape CORE_SHAPE = Block.box(5, 5, 5, 11, 11, 11);
     private static final VoxelShape NORTH_SHAPE = Block.box(6, 6, 0, 10, 10, 5);
     private static final VoxelShape SOUTH_SHAPE = Block.box(6, 6, 11, 10, 10, 16);
@@ -37,7 +49,7 @@ public class DiamondPipeBlock extends BasePipeBlock {
                         .sound(SoundType.METAL)
                         .requiresCorrectToolForDrops()
                         .noOcclusion(),
-                2); // Tier 2 (avanzado)
+                2);
 
         registerDefaultState(this.stateDefinition.any()
                 .setValue(NORTH, false)
@@ -48,9 +60,31 @@ public class DiamondPipeBlock extends BasePipeBlock {
                 .setValue(DOWN, false));
     }
 
+    @Nullable
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return new PipeBlockEntity(pos, state);
+    }
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+        if (level.isClientSide) return null;
+        return (lvl, pos, st, blockEntity) -> {
+            if (blockEntity instanceof PipeBlockEntity pipe) {
+                PipeBlockEntity.tick(lvl, pos, st, pipe);
+            }
+        };
+    }
+
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(NORTH, SOUTH, EAST, WEST, UP, DOWN);
+    }
+
+    @Override
+    public RenderShape getRenderShape(BlockState state) {
+        return RenderShape.MODEL;
     }
 
     @Override
@@ -70,6 +104,10 @@ public class DiamondPipeBlock extends BasePipeBlock {
     @Override
     public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
                                   net.minecraft.world.level.LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
+        if (level.getBlockEntity(pos) instanceof PipeBlockEntity pipe) {
+            pipe.markNetworkDirty();
+        }
+
         return state.setValue(getPropertyForDirection(direction), canConnectTo(neighborState, direction.getOpposite()));
     }
 
@@ -87,23 +125,89 @@ public class DiamondPipeBlock extends BasePipeBlock {
                 .setValue(DOWN, canConnectTo(level.getBlockState(pos.below()), Direction.UP));
     }
 
+    @Override
+    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
+        super.onPlace(state, level, pos, oldState, isMoving);
+        if (!level.isClientSide) {
+            notifyNeighborPipes(level, pos);
+        }
+    }
+
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!level.isClientSide && !state.is(newState.getBlock())) {
+            notifyNeighborPipes(level, pos);
+        }
+        super.onRemove(state, level, pos, newState, isMoving);
+    }
+
+    private void notifyNeighborPipes(Level level, BlockPos pos) {
+        for (Direction dir : Direction.values()) {
+            BlockPos neighborPos = pos.relative(dir);
+            if (level.getBlockEntity(neighborPos) instanceof PipeBlockEntity pipe) {
+                pipe.markNetworkDirty();
+            }
+        }
+    }
+
+    @Override
+    public void playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
+        if (!level.isClientSide) {
+            if (!player.isCreative()) {
+                ItemStack tool = player.getMainHandItem();
+                if (hasCorrectTool(tool)) {
+                    popResource(level, pos, new ItemStack(this));
+                }
+            }
+        }
+
+        super.playerWillDestroy(level, pos, state, player);
+    }
+
+    @Override
+    public void playerDestroy(Level level, Player player, BlockPos pos, BlockState state,
+                              @Nullable BlockEntity blockEntity, ItemStack tool) {
+        player.awardStat(net.minecraft.stats.Stats.BLOCK_MINED.get(this));
+        player.causeFoodExhaustion(0.005F);
+    }
+
+    private boolean hasCorrectTool(ItemStack tool) {
+        if (tool.isEmpty()) return false;
+
+        // Obtenemos el Tier requerido desde Config
+        String requiredTierName = ModConfig.PIPES.getRequiredTool(2);
+        Tier requiredTier = getTierFromName(requiredTierName);
+
+        // Si el config está mal o no requiere tier, se pica con cualquier cosa
+        if (requiredTier == null) return true;
+
+        // Verificamos si es una herramienta con Tier (Picos, Hachas, etc.)
+        if (!(tool.getItem() instanceof TieredItem tieredItem)) return false;
+
+        Tier toolTier = tieredItem.getTier();
+        // Verificamos si el tier de la herramienta es igual al requerido
+        // O si el requerido está en la lista de tiers "inferiores" (lógica de jerarquía de Forge)
+        return toolTier == requiredTier || TierSortingRegistry.getTiersLowerThan(toolTier).contains(requiredTier);
+    }
+
+    private Tier getTierFromName(String name) {
+        return switch (name.toUpperCase()) {
+            case "WOOD" -> Tiers.WOOD;
+            case "STONE" -> Tiers.STONE;
+            case "IRON" -> Tiers.IRON;
+            case "DIAMOND" -> Tiers.DIAMOND;
+            case "NETHERITE" -> Tiers.NETHERITE;
+            case "GOLD" -> Tiers.GOLD;
+            default -> Tiers.DIAMOND;
+        };
+    }
+
     private boolean canConnectTo(BlockState neighborState, Direction connectionSide) {
         Block block = neighborState.getBlock();
 
-        // Conectar a otras tuberías (incluidas las de oro)
-        if (block instanceof BasePipeBlock) {
-            return true;
-        }
-
-        // Conectar a Cores
-        if (block instanceof ExperienceCoreBlock core) {
-            return isCoreTierCompatible(core.getTier());
-        }
-
-        // Conectar a Collectors
-        if (block instanceof ExperienceCollectorBlock collector) {
-            return isCollectorCompatible(collector.getTier());
-        }
+        if (block instanceof BasePipeBlock) return true;
+        if (block instanceof ExperienceCoreBlock core) return isCoreTierCompatible(core.getTier());
+        if (block instanceof ExperienceCollectorBlock collector) return isCollectorCompatible(collector.getTier());
 
         return false;
     }
@@ -119,14 +223,13 @@ public class DiamondPipeBlock extends BasePipeBlock {
         };
     }
 
-    // Diamond Pipes (Tier 2) se conectan a TODOS los cores (1-5) y Advanced Collector
     @Override
     protected boolean isCoreTierCompatible(int coreTier) {
-        return coreTier >= 1 && coreTier <= 5; // Todos los tiers
+        return coreTier >= 1 && coreTier <= 5;
     }
 
     @Override
     protected boolean isCollectorCompatible(int collectorTier) {
-        return collectorTier == 2; // Solo Advanced Collector
+        return collectorTier == 2;
     }
 }

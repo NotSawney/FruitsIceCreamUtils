@@ -3,6 +3,7 @@ package com.fruitsicecream.fruitsicecreamutilities.core.init;
 import com.fruitsicecream.fruitsicecreamutilities.FruitsIceCreamUtilities;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEntity.ExperienceCollectorBlockEntity;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEntity.ExperienceCoreBlockEntity;
+import com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEntity.PipeBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
@@ -28,6 +29,13 @@ public class ModBlockEntities {
                     BlockEntityType.Builder.of(ExperienceCollectorBlockEntity::new,
                             ModBlocks.BASIC_EXPERIENCE_COLLECTOR.get(),
                             ModBlocks.ADVANCED_EXPERIENCE_COLLECTOR.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<PipeBlockEntity>> PIPE_BE =
+            BLOCK_ENTITIES.register("pipe_be", () ->
+                    BlockEntityType.Builder.of(PipeBlockEntity::new,
+                            ModBlocks.GOLD_PIPE.get(),
+                            ModBlocks.DIAMOND_PIPE.get()
                     ).build(null));
 
     public static void register(IEventBus eventBus) {

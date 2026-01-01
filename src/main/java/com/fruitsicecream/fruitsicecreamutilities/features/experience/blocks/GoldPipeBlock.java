@@ -13,13 +13,10 @@ import net.minecraft.world.item.TieredItem;
 import net.minecraft.world.item.Tiers;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTicker;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
@@ -29,8 +26,13 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.common.TierSortingRegistry;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * Gold-Inlaid Pipe (Tier 1)
+ * - Completamente pasivo, no requiere ticking
+ * - La lógica de red está centralizada en NetworkManager
+ * - Solo se encarga de conexiones visuales y notificaciones
+ */
 public class GoldPipeBlock extends BasePipeBlock {
-    // Propiedades de conexión para cada dirección
     public static final BooleanProperty NORTH = BooleanProperty.create("north");
     public static final BooleanProperty SOUTH = BooleanProperty.create("south");
     public static final BooleanProperty EAST = BooleanProperty.create("east");
@@ -70,16 +72,11 @@ public class GoldPipeBlock extends BasePipeBlock {
         return new PipeBlockEntity(pos, state);
     }
 
-    @Nullable
-    @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        if (level.isClientSide) return null;
-        return (lvl, pos, st, blockEntity) -> {
-            if (blockEntity instanceof PipeBlockEntity pipe) {
-                PipeBlockEntity.tick(lvl, pos, st, pipe);
-            }
-        };
-    }
+    // ========================================
+    // NOTA: NO HAY getTicker()
+    // Las pipes son pasivas y no necesitan tick
+    // Toda la lógica está en NetworkManager
+    // ========================================
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
@@ -116,14 +113,24 @@ public class GoldPipeBlock extends BasePipeBlock {
         return state.setValue(getPropertyForDirection(direction), canConnectTo(neighborState, direction.getOpposite()));
     }
 
-    // Añadir este método helper en la clase del bloque
+    /**
+     * Notifica a los Collectors cercanos de forma SEGURA.
+     * Solo accede a chunks cargados y collectors que no estén siendo removidos.
+     */
     private void notifyNearbyCollectors(net.minecraft.world.level.LevelAccessor level, BlockPos pos) {
         BlockPos.betweenClosedStream(
                 pos.offset(-2, -2, -2),
                 pos.offset(2, 2, 2)
         ).forEach(checkPos -> {
-            if (level.getBlockEntity(checkPos) instanceof ExperienceCollectorBlockEntity collector) {
-                collector.invalidateNetwork();
+            // SEGURIDAD: Verificar que el chunk esté cargado
+            if (level.hasChunkAt(checkPos)) {
+                BlockEntity be = level.getBlockEntity(checkPos);
+                if (be instanceof ExperienceCollectorBlockEntity collector) {
+                    // Solo invalidar si el collector no está siendo removido
+                    if (!collector.isRemoved()) {
+                        collector.invalidateNetwork();
+                    }
+                }
             }
         });
     }
@@ -147,6 +154,7 @@ public class GoldPipeBlock extends BasePipeBlock {
                         BlockState oldState, boolean isMoving) {
         super.onPlace(state, level, pos, oldState, isMoving);
 
+        // Notificar cuando se coloca
         if (!level.isClientSide && level.getBlockEntity(pos) instanceof PipeBlockEntity pipe) {
             pipe.onPlaced();
         }
@@ -155,27 +163,19 @@ public class GoldPipeBlock extends BasePipeBlock {
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos,
                          BlockState newState, boolean isMoving) {
-        // La notificación se hace automáticamente en setRemoved()
+        // La notificación se maneja automáticamente en PipeBlockEntity.setRemoved()
         super.onRemove(state, level, pos, newState, isMoving);
     }
 
     @Override
     public void playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
         if (!level.isClientSide) {
-            // Reglas de dropeo:
-            // - En creativo: NO dropear nada
-            // - Herramienta incorrecta: NO dropear nada
-            // - Herramienta correcta: dropear normalmente
-
             if (!player.isCreative()) {
                 ItemStack tool = player.getMainHandItem();
                 if (hasCorrectTool(tool)) {
-                    // Dropear normalmente (Minecraft se encarga)
                     popResource(level, pos, new ItemStack(this));
                 }
-                // Si no tiene la herramienta correcta, no dropea nada
             }
-            // Si está en creativo, no dropea nada
         }
 
         super.playerWillDestroy(level, pos, state, player);
@@ -186,25 +186,18 @@ public class GoldPipeBlock extends BasePipeBlock {
                               @Nullable BlockEntity blockEntity, ItemStack tool) {
         player.awardStat(net.minecraft.stats.Stats.BLOCK_MINED.get(this));
         player.causeFoodExhaustion(0.005F);
-        // No llamamos a super.playerDestroy para evitar drops duplicados
     }
 
     private boolean hasCorrectTool(ItemStack tool) {
         if (tool.isEmpty()) return false;
 
-        // Obtenemos el Tier requerido desde Config
-        String requiredTierName = ModConfig.PIPES.getRequiredTool(2);
+        String requiredTierName = ModConfig.PIPES.getRequiredTool(1); // Tier 1 para Gold
         Tier requiredTier = getTierFromName(requiredTierName);
 
-        // Si el config está mal o no requiere tier, se pica con cualquier cosa
         if (requiredTier == null) return true;
-
-        // Verificamos si es una herramienta con Tier (Picos, Hachas, etc.)
         if (!(tool.getItem() instanceof TieredItem tieredItem)) return false;
 
         Tier toolTier = tieredItem.getTier();
-        // Verificamos si el tier de la herramienta es igual al requerido
-        // O si el requerido está en la lista de tiers "inferiores" (lógica de jerarquía de Forge)
         return toolTier == requiredTier || TierSortingRegistry.getTiersLowerThan(toolTier).contains(requiredTier);
     }
 

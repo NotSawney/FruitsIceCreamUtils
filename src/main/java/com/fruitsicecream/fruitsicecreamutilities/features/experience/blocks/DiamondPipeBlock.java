@@ -17,8 +17,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTicker;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
@@ -28,6 +26,12 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.common.TierSortingRegistry;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * Diamond-Studded Pipeline (Tier 2)
+ * - Completamente pasivo, no requiere ticking
+ * - La lógica de red está centralizada en NetworkManager
+ * - Solo se encarga de conexiones visuales y notificaciones
+ */
 public class DiamondPipeBlock extends BasePipeBlock {
     public static final BooleanProperty NORTH = BooleanProperty.create("north");
     public static final BooleanProperty SOUTH = BooleanProperty.create("south");
@@ -67,16 +71,11 @@ public class DiamondPipeBlock extends BasePipeBlock {
         return new PipeBlockEntity(pos, state);
     }
 
-    @Nullable
-    @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        if (level.isClientSide) return null;
-        return (lvl, pos, st, blockEntity) -> {
-            if (blockEntity instanceof PipeBlockEntity pipe) {
-                PipeBlockEntity.tick(lvl, pos, st, pipe);
-            }
-        };
-    }
+    // ========================================
+    // NOTA: NO HAY getTicker()
+    // Las pipes son pasivas y no necesitan tick
+    // Toda la lógica está en NetworkManager
+    // ========================================
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
@@ -113,13 +112,24 @@ public class DiamondPipeBlock extends BasePipeBlock {
         return state.setValue(getPropertyForDirection(direction), canConnectTo(neighborState, direction.getOpposite()));
     }
 
+    /**
+     * Notifica a los Collectors cercanos de forma SEGURA.
+     * Solo accede a chunks cargados y collectors que no estén siendo removidos.
+     */
     private void notifyNearbyCollectors(net.minecraft.world.level.LevelAccessor level, BlockPos pos) {
         BlockPos.betweenClosedStream(
                 pos.offset(-2, -2, -2),
                 pos.offset(2, 2, 2)
         ).forEach(checkPos -> {
-            if (level.getBlockEntity(checkPos) instanceof ExperienceCollectorBlockEntity collector) {
-                collector.invalidateNetwork();
+            // SEGURIDAD: Verificar que el chunk esté cargado
+            if (level.hasChunkAt(checkPos)) {
+                BlockEntity be = level.getBlockEntity(checkPos);
+                if (be instanceof ExperienceCollectorBlockEntity collector) {
+                    // Solo invalidar si el collector no está siendo removido
+                    if (!collector.isRemoved()) {
+                        collector.invalidateNetwork();
+                    }
+                }
             }
         });
     }
@@ -142,6 +152,8 @@ public class DiamondPipeBlock extends BasePipeBlock {
     public void onPlace(BlockState state, Level level, BlockPos pos,
                         BlockState oldState, boolean isMoving) {
         super.onPlace(state, level, pos, oldState, isMoving);
+
+        // Notificar cuando se coloca
         if (!level.isClientSide && level.getBlockEntity(pos) instanceof PipeBlockEntity pipe) {
             pipe.onPlaced();
         }
@@ -150,7 +162,7 @@ public class DiamondPipeBlock extends BasePipeBlock {
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos,
                          BlockState newState, boolean isMoving) {
-        // La notificación se hace automáticamente en setRemoved()
+        // La notificación se maneja automáticamente en PipeBlockEntity.setRemoved()
         super.onRemove(state, level, pos, newState, isMoving);
     }
 
@@ -178,19 +190,13 @@ public class DiamondPipeBlock extends BasePipeBlock {
     private boolean hasCorrectTool(ItemStack tool) {
         if (tool.isEmpty()) return false;
 
-        // Obtenemos el Tier requerido desde Config
-        String requiredTierName = ModConfig.PIPES.getRequiredTool(2);
+        String requiredTierName = ModConfig.PIPES.getRequiredTool(2); // Tier 2 para Diamond
         Tier requiredTier = getTierFromName(requiredTierName);
 
-        // Si el config está mal o no requiere tier, se pica con cualquier cosa
         if (requiredTier == null) return true;
-
-        // Verificamos si es una herramienta con Tier (Picos, Hachas, etc.)
         if (!(tool.getItem() instanceof TieredItem tieredItem)) return false;
 
         Tier toolTier = tieredItem.getTier();
-        // Verificamos si el tier de la herramienta es igual al requerido
-        // O si el requerido está en la lista de tiers "inferiores" (lógica de jerarquía de Forge)
         return toolTier == requiredTier || TierSortingRegistry.getTiersLowerThan(toolTier).contains(requiredTier);
     }
 

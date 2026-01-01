@@ -68,10 +68,11 @@ public class ExperienceCoreBlockEntity extends BlockEntity implements MenuProvid
         setChanged();
     }
 
-    public static void tick(Level level, BlockPos pos, BlockState state, ExperienceCoreBlockEntity blockEntity) {
+    public static void tick(Level level, BlockPos pos, BlockState state,
+                            ExperienceCoreBlockEntity blockEntity) {
         if (level.isClientSide) return;
 
-        // Generación de XP
+        // Solo generación de XP
         blockEntity.tickCounter++;
         int ticksPerGen = ModConfig.GENERAL.ticksPerGeneration.get();
 
@@ -80,18 +81,7 @@ public class ExperienceCoreBlockEntity extends BlockEntity implements MenuProvid
             blockEntity.generateExperience();
         }
 
-        // Push logic (si hay XP almacenada)
-        if (blockEntity.storedExperience > 0) {
-            blockEntity.pushCounter++;
-            int pushInterval = blockEntity.getPushInterval();
-
-            if (blockEntity.pushCounter >= pushInterval) {
-                blockEntity.pushCounter = 0;
-                blockEntity.tryPushToCollector();
-            }
-        }
-
-        // Actualizar luz si está habilitado
+        // Actualizar luz
         if (ModConfig.GENERAL.enableLightEmission.get()) {
             blockEntity.updateLightLevel();
         }

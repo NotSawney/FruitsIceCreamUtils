@@ -4,8 +4,8 @@ import com.fruitsicecream.fruitsicecreamutilities.core.config.ModConfig;
 import com.fruitsicecream.fruitsicecreamutilities.core.init.ModBlockEntities;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.ExperienceCollectorBlock;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.menu.ExperienceCollectorMenu;
+import com.fruitsicecream.fruitsicecreamutilities.features.experience.network.NetworkManager;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.MenuProvider;
@@ -23,10 +23,25 @@ import org.jetbrains.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * NUEVA VERSIÓN: El Collector ahora es el maestro de su red.
+ *
+ * Responsabilidades:
+ * - Mantener cache de su red de tuberías
+ * - Escanear periódicamente la red
+ * - Transferir XP desde cores conectados
+ * - Actualizar UI con estadísticas
+ */
 public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuProvider {
     private int storedExperience = 0;
     private int tier;
 
+    // Cache de la red
+    private NetworkManager.XPNetwork cachedNetwork = null;
+    private int scanCooldown = 0;
+    private static final int SCAN_INTERVAL = 100; // Escanear cada 5 segundos
+
+    // Estadísticas para UI (se calculan del network)
     private final Map<Integer, Integer> connectedCoresByTier = new HashMap<>();
     private int totalConnectedCores = 0;
     private int totalProductionRate = 0;
@@ -78,62 +93,153 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
         setChanged();
     }
 
-    // DEPRECATED - Mantener para compatibilidad
-    @Deprecated
-    public void setTierAndCapacity(int tier, int maxCapacity) {
-        this.tier = tier;
-        setChanged();
-    }
-
     public static void tick(Level level, BlockPos pos, BlockState state, ExperienceCollectorBlockEntity blockEntity) {
         if (level.isClientSide) return;
 
-        // Actualizar nivel de luz si está habilitado
+        // Escaneo periódico de la red
+        blockEntity.scanCooldown--;
+        if (blockEntity.scanCooldown <= 0) {
+            blockEntity.scanNetwork();
+            blockEntity.scanCooldown = SCAN_INTERVAL;
+        }
+
+        // Transferir XP desde los cores (cada tick)
+        if (blockEntity.cachedNetwork != null && blockEntity.cachedNetwork.valid) {
+            blockEntity.transferXPFromCores();
+        }
+
+        // Actualizar nivel de luz
         if (ModConfig.GENERAL.enableLightEmission.get()) {
             blockEntity.updateLightLevel();
         }
+    }
 
-        // Escanear cores conectados cada 100 ticks (5 segundos)
-        if (level.getGameTime() % 100 == 0) {
-            blockEntity.scanConnectedCores();
+    /**
+     * Escanea la red desde este Collector.
+     * Solo se hace periódicamente (cada SCAN_INTERVAL ticks).
+     */
+    private void scanNetwork() {
+        if (level == null) return;
+
+        try {
+            cachedNetwork = NetworkManager.scanFromCollector(level, worldPosition, tier);
+
+            // Actualizar estadísticas para UI
+            updateNetworkStats();
+            setChanged();
+
+        } catch (Exception e) {
+            // Si falla el escaneo, invalidar cache y reintentar después
+            cachedNetwork = null;
+            scanCooldown = SCAN_INTERVAL * 2; // Esperar el doble
         }
     }
 
-    private void scanConnectedCores() {
-        if (level == null) return;
+    /**
+     * Actualiza las estadísticas para la UI basándose en la red actual.
+     */
+    private void updateNetworkStats() {
+        if (cachedNetwork == null || !cachedNetwork.valid) {
+            connectedCoresByTier.clear();
+            totalConnectedCores = 0;
+            totalProductionRate = 0;
+            return;
+        }
 
         connectedCoresByTier.clear();
-        totalConnectedCores = 0;
-        totalProductionRate = 0;
+        totalConnectedCores = cachedNetwork.cores.size();
+        totalProductionRate = cachedNetwork.getTotalProductionRate(level);
 
-        scanDirection(Direction.UP);
-        scanDirection(Direction.DOWN);
-
-        setChanged();
+        // Contar cores por tier
+        for (NetworkManager.CoreConnection core : cachedNetwork.cores) {
+            connectedCoresByTier.put(core.tier,
+                    connectedCoresByTier.getOrDefault(core.tier, 0) + 1);
+        }
     }
 
-    private void scanDirection(Direction direction) {
-        if (level == null) return;
+    /**
+     * Transfiere XP disponible desde los cores conectados.
+     * Esta lógica se ejecuta CADA TICK.
+     */
+    private void transferXPFromCores() {
+        if (level == null || cachedNetwork == null || !cachedNetwork.valid) return;
+        if (isFull()) return; // No transferir si estamos llenos
 
-        BlockPos checkPos = worldPosition.relative(direction);
-        BlockEntity be = level.getBlockEntity(checkPos);
+        // Calcular cuánto XP podemos aceptar
+        int spaceAvailable = getMaxCapacity() - storedExperience;
+        if (spaceAvailable <= 0) return;
 
-        if (be instanceof ExperienceCoreBlockEntity coreEntity) {
-            int coreTier = coreEntity.getTier();
+        // Obtener tasa de flujo según config
+        int flowRate = getFlowRatePerTick();
+        int xpToTransfer = Math.min(spaceAvailable, flowRate);
 
-            if (isCompatibleCore(coreTier)) {
-                connectedCoresByTier.put(coreTier,
-                        connectedCoresByTier.getOrDefault(coreTier, 0) + 1);
+        if (xpToTransfer <= 0) return;
 
-                totalConnectedCores++;
-                totalProductionRate += coreEntity.getXpPerHour();
+        // Extraer XP de los cores (priorizando por tier)
+        int transferred = extractXPFromCores(xpToTransfer);
+
+        if (transferred > 0) {
+            storedExperience += transferred;
+            setChanged();
+
+            if (ModConfig.GENERAL.enableLightEmission.get()) {
+                updateLightLevel();
             }
         }
     }
 
-    private boolean isCompatibleCore(int coreTier) {
-        return ModConfig.COLLECTORS.isCoreTierCompatible(tier, coreTier);
+    /**
+     * Extrae XP de los cores conectados, priorizando por tier (mayor primero).
+     *
+     * @param maxAmount Cantidad máxima a extraer
+     * @return Cantidad realmente extraída
+     */
+    private int extractXPFromCores(int maxAmount) {
+        int remaining = maxAmount;
+
+        // Ordenar cores por tier descendente (ya vienen ordenados del NetworkManager)
+        for (NetworkManager.CoreConnection coreConnection : cachedNetwork.cores) {
+            if (remaining <= 0) break;
+
+            BlockEntity be = level.getBlockEntity(coreConnection.pos);
+            if (!(be instanceof ExperienceCoreBlockEntity core)) continue;
+
+            int coreXP = core.getStoredExperience();
+            if (coreXP <= 0) continue;
+
+            int toExtract = Math.min(remaining, coreXP);
+            core.setStoredExperience(coreXP - toExtract);
+            remaining -= toExtract;
+        }
+
+        return maxAmount - remaining;
     }
+
+    /**
+     * Obtiene la tasa de flujo por tick según config.
+     */
+    private int getFlowRatePerTick() {
+        if (!ModConfig.PIPES.limitedFlowrate.get()) {
+            // Flujo ilimitado - transferir todo lo disponible
+            return Integer.MAX_VALUE;
+        }
+
+        // Flujo limitado - usar la config
+        return ModConfig.PIPES.getFlowRate(tier);
+    }
+
+    /**
+     * Fuerza un re-escaneo inmediato de la red.
+     * Llamado cuando cambia la topología (pipes rotas/colocadas).
+     */
+    public void invalidateNetwork() {
+        cachedNetwork = null;
+        scanCooldown = 0; // Escanear en el próximo tick
+    }
+
+    // ========================================
+    // MÉTODOS DE ALMACENAMIENTO
+    // ========================================
 
     private void updateLightLevel() {
         if (level == null || level.isClientSide) return;
@@ -155,7 +261,6 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
         return (int) (fillPercentage * 15);
     }
 
-    // Getter que lee de la config
     public int getMaxCapacity() {
         return ModConfig.COLLECTORS.getMaxCapacity(tier);
     }
@@ -207,6 +312,10 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
         return tier;
     }
 
+    // ========================================
+    // MÉTODOS DE ESTADÍSTICAS (Para UI)
+    // ========================================
+
     public Map<Integer, Integer> getConnectedCoresByTier() {
         return new HashMap<>(connectedCoresByTier);
     }
@@ -223,6 +332,10 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
         if (totalConnectedCores == 0) return 0;
         return totalProductionRate / totalConnectedCores;
     }
+
+    // ========================================
+    // COLECCIÓN DE XP
+    // ========================================
 
     public void collectExperience(Player player) {
         if (storedExperience <= 0 || level == null || level.isClientSide) return;
@@ -266,6 +379,10 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
         return 1;
     }
 
+    // ========================================
+    // MENU PROVIDER
+    // ========================================
+
     @Override
     public Component getDisplayName() {
         String tierName = tier == 1 ? "basic" : "advanced";
@@ -282,19 +399,18 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
         return dataAccess;
     }
 
+    // ========================================
+    // NBT PERSISTENCE
+    // ========================================
+
     @Override
     protected void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);
         tag.putInt("StoredExperience", storedExperience);
         tag.putInt("Tier", tier);
+        tag.putInt("ScanCooldown", scanCooldown);
 
-        CompoundTag coresTag = new CompoundTag();
-        for (Map.Entry<Integer, Integer> entry : connectedCoresByTier.entrySet()) {
-            coresTag.putInt("tier_" + entry.getKey(), entry.getValue());
-        }
-        tag.put("ConnectedCores", coresTag);
-        tag.putInt("TotalCores", totalConnectedCores);
-        tag.putInt("TotalProduction", totalProductionRate);
+        // No guardamos la red completa - se recalcula al cargar
     }
 
     @Override
@@ -302,18 +418,9 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
         super.load(tag);
         storedExperience = tag.getInt("StoredExperience");
         tier = tag.getInt("Tier");
+        scanCooldown = tag.getInt("ScanCooldown");
 
-        if (tag.contains("ConnectedCores")) {
-            CompoundTag coresTag = tag.getCompound("ConnectedCores");
-            connectedCoresByTier.clear();
-            for (int i = 1; i <= 5; i++) {
-                String key = "tier_" + i;
-                if (coresTag.contains(key)) {
-                    connectedCoresByTier.put(i, coresTag.getInt(key));
-                }
-            }
-        }
-        totalConnectedCores = tag.getInt("TotalCores");
-        totalProductionRate = tag.getInt("TotalProduction");
+        // Forzar re-escaneo al cargar
+        cachedNetwork = null;
     }
 }

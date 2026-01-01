@@ -1,6 +1,7 @@
 package com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks;
 
 import com.fruitsicecream.fruitsicecreamutilities.core.config.ModConfig;
+import com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEntity.ExperienceCollectorBlockEntity;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEntity.PipeBlockEntity;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.base.BasePipeBlock;
 import net.minecraft.core.BlockPos;
@@ -104,11 +105,23 @@ public class DiamondPipeBlock extends BasePipeBlock {
     @Override
     public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
                                   net.minecraft.world.level.LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
-        if (level.getBlockEntity(pos) instanceof PipeBlockEntity pipe) {
-            pipe.markNetworkDirty();
+        // Notificar a Collectors cercanos cuando cambia la topología
+        if (!level.isClientSide()) {
+            notifyNearbyCollectors(level, pos);
         }
 
         return state.setValue(getPropertyForDirection(direction), canConnectTo(neighborState, direction.getOpposite()));
+    }
+
+    private void notifyNearbyCollectors(net.minecraft.world.level.LevelAccessor level, BlockPos pos) {
+        BlockPos.betweenClosedStream(
+                pos.offset(-2, -2, -2),
+                pos.offset(2, 2, 2)
+        ).forEach(checkPos -> {
+            if (level.getBlockEntity(checkPos) instanceof ExperienceCollectorBlockEntity collector) {
+                collector.invalidateNetwork();
+            }
+        });
     }
 
     @Override
@@ -126,28 +139,19 @@ public class DiamondPipeBlock extends BasePipeBlock {
     }
 
     @Override
-    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
+    public void onPlace(BlockState state, Level level, BlockPos pos,
+                        BlockState oldState, boolean isMoving) {
         super.onPlace(state, level, pos, oldState, isMoving);
-        if (!level.isClientSide) {
-            notifyNeighborPipes(level, pos);
+        if (!level.isClientSide && level.getBlockEntity(pos) instanceof PipeBlockEntity pipe) {
+            pipe.onPlaced();
         }
     }
 
     @Override
-    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
-        if (!level.isClientSide && !state.is(newState.getBlock())) {
-            notifyNeighborPipes(level, pos);
-        }
+    public void onRemove(BlockState state, Level level, BlockPos pos,
+                         BlockState newState, boolean isMoving) {
+        // La notificación se hace automáticamente en setRemoved()
         super.onRemove(state, level, pos, newState, isMoving);
-    }
-
-    private void notifyNeighborPipes(Level level, BlockPos pos) {
-        for (Direction dir : Direction.values()) {
-            BlockPos neighborPos = pos.relative(dir);
-            if (level.getBlockEntity(neighborPos) instanceof PipeBlockEntity pipe) {
-                pipe.markNetworkDirty();
-            }
-        }
     }
 
     @Override

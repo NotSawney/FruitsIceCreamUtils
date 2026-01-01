@@ -49,6 +49,11 @@ public class PipeNetworkScanner {
             // Explorar vecinos
             for (Direction dir : Direction.values()) {
                 BlockPos neighborPos = pos.relative(dir);
+
+                if (!level.isLoaded(neighborPos)) {
+                    continue;
+                }
+
                 BlockState neighborState = level.getBlockState(neighborPos);
                 Block neighborBlock = neighborState.getBlock();
 

@@ -17,16 +17,14 @@ import java.util.*;
 
 /**
  * Sistema centralizado de gestión de redes de tuberías.
- *
- * FILOSOFÍA:
- * - Solo los Collectors mantienen redes activas
- * - Las Pipes son pasivas, solo conectan
- * - Escaneo único por red por tick
- * - Sin notificaciones en cascada
+ * VERSIÓN OPTIMIZADA con límites de seguridad mejorados.
  */
 public class NetworkManager {
 
-    private static final int MAX_SCAN_BLOCKS = 1000; // Límite de seguridad
+    // Límites de seguridad más agresivos
+    private static final int MAX_SCAN_BLOCKS_LIMITED = 250;   // Para pipes con distancia limitada
+    private static final int MAX_SCAN_BLOCKS_UNLIMITED = 750; // Para pipes ilimitadas
+    private static final int MAX_CORES_PER_NETWORK = 100;      // Límite absoluto de cores
 
     /**
      * Representa una red de XP completamente escaneada.
@@ -37,14 +35,16 @@ public class NetworkManager {
         public final List<CoreConnection> cores;
         public final int networkSize;
         public final boolean valid;
+        public final boolean hitScanLimit; // Nuevo: indica si se alcanzó el límite
 
         public XPNetwork(BlockPos collectorPos, int collectorTier,
-                         List<CoreConnection> cores, int networkSize) {
+                         List<CoreConnection> cores, int networkSize, boolean hitScanLimit) {
             this.collectorPos = collectorPos;
             this.collectorTier = collectorTier;
             this.cores = cores;
             this.networkSize = networkSize;
             this.valid = !cores.isEmpty();
+            this.hitScanLimit = hitScanLimit;
         }
 
         public int getTotalStoredXP(Level level) {
@@ -76,7 +76,7 @@ public class NetworkManager {
     public static class CoreConnection {
         public final BlockPos pos;
         public final int tier;
-        public final int distance; // Distancia en bloques desde el Collector
+        public final int distance;
 
         public CoreConnection(BlockPos pos, int tier, int distance) {
             this.pos = pos;
@@ -87,37 +87,48 @@ public class NetworkManager {
 
     /**
      * Escanea la red completa desde un Collector.
-     *
-     * @param level El mundo
-     * @param collectorPos Posición del Collector
-     * @param collectorTier Tier del Collector (1 o 2)
-     * @return La red escaneada, o una red inválida si hay error
+     * VERSIÓN OPTIMIZADA con límites adaptativos.
      */
     public static XPNetwork scanFromCollector(Level level, BlockPos collectorPos, int collectorTier) {
         if (level == null || collectorPos == null) {
-            return new XPNetwork(collectorPos, collectorTier, Collections.emptyList(), 0);
+            return new XPNetwork(collectorPos, collectorTier, Collections.emptyList(), 0, false);
         }
+
+        // Determinar límite de escaneo según si la distancia es limitada o no
+        int maxDistance = getMaxDistanceForTier(collectorTier);
+        int maxScanBlocks = maxDistance < 0 ? MAX_SCAN_BLOCKS_UNLIMITED : MAX_SCAN_BLOCKS_LIMITED;
 
         // Estructuras de escaneo
         Set<BlockPos> visitedPipes = new HashSet<>();
         List<CoreConnection> foundCores = new ArrayList<>();
         Queue<ScanNode> queue = new LinkedList<>();
 
-        // Comenzar desde las pipes adyacentes al Collector (arriba y abajo)
+        // Comenzar desde las pipes adyacentes al Collector
         addInitialPipes(level, collectorPos, collectorTier, queue, visitedPipes);
 
         int blocksScanned = 0;
+        boolean hitLimit = false;
 
-        // BFS para encontrar todas las pipes y cores conectadas
-        while (!queue.isEmpty() && blocksScanned < MAX_SCAN_BLOCKS) {
+        // BFS optimizado
+        while (!queue.isEmpty() && blocksScanned < maxScanBlocks) {
             ScanNode current = queue.poll();
             if (current == null) break;
 
             blocksScanned++;
 
-            // Verificar límite de distancia por tier
-            int maxDistance = getMaxDistanceForTier(collectorTier);
+            // Límite de distancia (si aplica)
             if (maxDistance >= 0 && current.distance > maxDistance) {
+                continue;
+            }
+
+            // Límite absoluto de cores
+            if (foundCores.size() >= MAX_CORES_PER_NETWORK) {
+                hitLimit = true;
+                break;
+            }
+
+            // Verificar que el chunk esté cargado
+            if (!level.isLoaded(current.pos)) {
                 continue;
             }
 
@@ -130,58 +141,79 @@ public class NetworkManager {
                 if (isCoreTierCompatibleWithCollector(collectorTier, coreTier)) {
                     foundCores.add(new CoreConnection(current.pos, coreTier, current.distance));
                 }
-                // Los cores no extienden la red
-                continue;
+                continue; // Los cores no extienden la red
             }
 
             // Si es una Pipe, explorar vecinos
             if (block instanceof BasePipeBlock pipeBlock) {
                 int pipeTier = pipeBlock.getTier();
 
-                // Solo procesar si la pipe es compatible con este Collector
+                // Solo procesar si la pipe es compatible
                 if (!isPipeCompatibleWithCollector(collectorTier, pipeTier)) {
                     continue;
                 }
 
-                // Explorar todas las direcciones
-                for (Direction dir : Direction.values()) {
-                    BlockPos neighborPos = current.pos.relative(dir);
+                // Explorar vecinos (optimizado)
+                exploreNeighbors(level, current, collectorTier, queue, visitedPipes);
+            }
+        }
 
-                    // Skip si ya visitamos esta posición
-                    if (visitedPipes.contains(neighborPos)) {
-                        continue;
-                    }
-
-                    // Skip si no está cargado
-                    if (!level.isLoaded(neighborPos)) {
-                        continue;
-                    }
-
-                    BlockState neighborState = level.getBlockState(neighborPos);
-                    Block neighborBlock = neighborState.getBlock();
-
-                    // Solo añadir a la cola si es Pipe o Core compatible
-                    if (neighborBlock instanceof BasePipeBlock ||
-                            (neighborBlock instanceof ExperienceCoreBlock coreBlock &&
-                                    isCoreTierCompatibleWithCollector(collectorTier, coreBlock.getTier()))) {
-
-                        visitedPipes.add(neighborPos);
-                        queue.add(new ScanNode(neighborPos, current.distance + 1));
-                    }
-                }
+        // Detectar si alcanzamos el límite
+        if (blocksScanned >= maxScanBlocks) {
+            hitLimit = true;
+            if (ModConfig.GENERAL.enableDebugLogging.get()) {
+                System.out.println("[NetworkManager] WARNING: Scan limit reached at " + collectorPos +
+                        " (scanned " + blocksScanned + " blocks)");
             }
         }
 
         // Aplicar límite de cores si existe
         List<CoreConnection> finalCores = applyCoreLimits(foundCores, collectorTier);
 
-        int networkSize = visitedPipes.size() + finalCores.size() + 1; // +1 por el Collector
+        int networkSize = visitedPipes.size() + finalCores.size() + 1;
 
-        return new XPNetwork(collectorPos, collectorTier, finalCores, networkSize);
+        return new XPNetwork(collectorPos, collectorTier, finalCores, networkSize, hitLimit);
     }
 
     /**
-     * Añade las pipes iniciales adyacentes al Collector a la cola de escaneo.
+     * Explora los vecinos de una pipe de forma optimizada.
+     */
+    private static void exploreNeighbors(Level level, ScanNode current, int collectorTier,
+                                         Queue<ScanNode> queue, Set<BlockPos> visited) {
+        for (Direction dir : Direction.values()) {
+            BlockPos neighborPos = current.pos.relative(dir);
+
+            // Skip si ya visitamos
+            if (visited.contains(neighborPos)) {
+                continue;
+            }
+
+            // Skip si no está cargado
+            if (!level.isLoaded(neighborPos)) {
+                continue;
+            }
+
+            BlockState neighborState = level.getBlockState(neighborPos);
+            Block neighborBlock = neighborState.getBlock();
+
+            // Solo añadir si es Pipe o Core compatible
+            boolean shouldAdd = false;
+
+            if (neighborBlock instanceof BasePipeBlock) {
+                shouldAdd = true;
+            } else if (neighborBlock instanceof ExperienceCoreBlock coreBlock) {
+                shouldAdd = isCoreTierCompatibleWithCollector(collectorTier, coreBlock.getTier());
+            }
+
+            if (shouldAdd) {
+                visited.add(neighborPos);
+                queue.add(new ScanNode(neighborPos, current.distance + 1));
+            }
+        }
+    }
+
+    /**
+     * Añade las pipes iniciales adyacentes al Collector.
      */
     private static void addInitialPipes(Level level, BlockPos collectorPos, int collectorTier,
                                         Queue<ScanNode> queue, Set<BlockPos> visited) {
@@ -197,10 +229,9 @@ public class NetworkManager {
             if (block instanceof BasePipeBlock pipeBlock) {
                 int pipeTier = pipeBlock.getTier();
 
-                // Verificar compatibilidad de tier
                 if (isPipeCompatibleWithCollector(collectorTier, pipeTier)) {
                     visited.add(pipePos);
-                    queue.add(new ScanNode(pipePos, 1)); // Distancia 1 desde Collector
+                    queue.add(new ScanNode(pipePos, 1));
                 }
             }
         }
@@ -212,24 +243,20 @@ public class NetworkManager {
     private static List<CoreConnection> applyCoreLimits(List<CoreConnection> cores, int collectorTier) {
         int maxCores = getMaxCoresForTier(collectorTier);
 
-        // Si no hay límite, devolver todos
+        // Si no hay límite o no lo excedemos, devolver todos
         if (maxCores < 0 || cores.size() <= maxCores) {
             return cores;
         }
 
-        // Priorizar cores por tier (mayor tier primero)
+        // Priorizar cores por tier (mayor tier primero), luego por distancia (más cercanos)
         List<CoreConnection> sorted = new ArrayList<>(cores);
         sorted.sort((a, b) -> {
-            // Primero por tier descendente
             int tierCompare = Integer.compare(b.tier, a.tier);
             if (tierCompare != 0) return tierCompare;
-
-            // Luego por distancia ascendente (más cercanos primero)
             return Integer.compare(a.distance, b.distance);
         });
 
-        // Tomar solo los primeros maxCores
-        return sorted.subList(0, Math.min(maxCores, sorted.size()));
+        return sorted.subList(0, maxCores);
     }
 
     // ========================================
@@ -237,23 +264,18 @@ public class NetworkManager {
     // ========================================
 
     private static boolean isPipeCompatibleWithCollector(int collectorTier, int pipeTier) {
-        // Basic Collector (1) solo acepta Gold Pipes (1)
-        // Advanced Collector (2) solo acepta Diamond Pipes (2)
         return collectorTier == pipeTier;
     }
 
     private static boolean isCoreTierCompatibleWithCollector(int collectorTier, int coreTier) {
         if (collectorTier == 1) {
-            // Basic: MK-I, MK-II, MK-III
             return coreTier >= 1 && coreTier <= 3;
         } else {
-            // Advanced: MK-I a MK-V
             return coreTier >= 1 && coreTier <= 5;
         }
     }
 
     private static int getMaxDistanceForTier(int collectorTier) {
-        // Asumiendo que collectorTier 1 = Gold Pipe, 2 = Diamond Pipe
         return ModConfig.PIPES.getMaxDistance(collectorTier);
     }
 

@@ -2,22 +2,13 @@ package com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEnti
 
 import com.fruitsicecream.fruitsicecreamutilities.core.init.ModBlockEntities;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * NUEVA VERSIÓN SIMPLIFICADA: Las pipes ahora son PASIVAS.
- *
- * Responsabilidades:
- * - Solo conectar visualmente
- * - Notificar a Collectors vecinos cuando hay cambios
- * - NO mantener cache de red
- * - NO hacer escaneos
- *
- * Los Collectors son los únicos que gestionan redes activamente.
+ * VERSIÓN SEGURA: Optimización para evitar cuelgues en "Saving World".
  */
 public class PipeBlockEntity extends BlockEntity {
 
@@ -26,40 +17,44 @@ public class PipeBlockEntity extends BlockEntity {
     }
 
     /**
-     * Las pipes ya no tienen lógica de tick.
-     * Toda la lógica de red la manejan los Collectors.
-     */
-    public static void tick(Level level, BlockPos pos, BlockState state, PipeBlockEntity blockEntity) {
-        // INTENCIONALMENTE VACÍO
-        // Las pipes son completamente pasivas ahora
-    }
-
-    /**
-     * Cuando se coloca o rompe una pipe, notificamos a los Collectors cercanos
-     * para que invaliden su cache de red.
+     * IMPORTANTE: En Forge 1.20.1, setRemoved se llama tanto al romper el bloque
+     * como al descargar el chunk/mundo.
      */
     @Override
     public void setRemoved() {
+        // Ejecutamos la lógica de limpieza de Forge primero
         super.setRemoved();
 
+        // SEGURIDAD: Solo notificamos si el nivel no es nulo, estamos en el servidor,
+        // Y muy importante: si el BE está siendo removido permanentemente (no solo descargado).
+        // Sin embargo, para redes, lo más seguro es verificar si el nivel sigue "vivo".
         if (level != null && !level.isClientSide) {
             notifyNearbyCollectors();
         }
     }
 
     /**
-     * Notifica a todos los Collectors en un radio de 2 bloques que la topología cambió.
-     * Esto es más eficiente que propagar notificaciones por toda la red.
+     * Notifica a los Collectors cercanos con chequeos de seguridad de carga de Chunks.
      */
     private void notifyNearbyCollectors() {
-        // Buscar en un cubo de 5x5x5 centrado en esta pipe
-        BlockPos.betweenClosedStream(
-                worldPosition.offset(-2, -2, -2),
-                worldPosition.offset(2, 2, 2)
-        ).forEach(pos -> {
-            BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof ExperienceCollectorBlockEntity collector) {
-                collector.invalidateNetwork();
+        if (level == null) return;
+
+        // Definimos el área de búsqueda (Radio 2)
+        BlockPos min = worldPosition.offset(-2, -2, -2);
+        BlockPos max = worldPosition.offset(2, 2, 2);
+
+        // Usamos betweenClosedStream pero con un filtro de seguridad de carga
+        BlockPos.betweenClosedStream(min, max).forEach(pos -> {
+            // SEGURIDAD CRÍTICA: Nunca llames a getBlockEntity sin verificar si el chunk está cargado.
+            // Esto es lo que causa el hang en "Saving World".
+            if (level.hasChunkAt(pos)) {
+                BlockEntity be = level.getBlockEntity(pos);
+                if (be instanceof ExperienceCollectorBlockEntity collector) {
+                    // Solo invalidamos si el collector no está marcado para removerse también
+                    if (!collector.isRemoved()) {
+                        collector.invalidateNetwork();
+                    }
+                }
             }
         });
     }
@@ -73,19 +68,14 @@ public class PipeBlockEntity extends BlockEntity {
         }
     }
 
-    // ========================================
-    // NBT (Mínimo necesario)
-    // ========================================
-
     @Override
     protected void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);
-        // Las pipes no necesitan guardar nada especial
     }
 
     @Override
     public void load(CompoundTag tag) {
         super.load(tag);
-        // Las pipes no necesitan cargar nada especial
     }
+
 }

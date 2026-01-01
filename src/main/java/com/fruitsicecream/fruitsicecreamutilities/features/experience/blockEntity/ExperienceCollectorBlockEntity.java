@@ -24,13 +24,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * NUEVA VERSIÓN: El Collector ahora es el maestro de su red.
- *
- * Responsabilidades:
- * - Mantener cache de su red de tuberías
- * - Escanear periódicamente la red
- * - Transferir XP desde cores conectados
- * - Actualizar UI con estadísticas
+ * VERSIÓN OPTIMIZADA del Collector.
+ * Maneja redes grandes con intervalos de escaneo adaptativos.
  */
 public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuProvider {
     private int storedExperience = 0;
@@ -39,9 +34,13 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
     // Cache de la red
     private NetworkManager.XPNetwork cachedNetwork = null;
     private int scanCooldown = 0;
-    private static final int SCAN_INTERVAL = 100; // Escanear cada 5 segundos
 
-    // Estadísticas para UI (se calculan del network)
+    // Intervalos de escaneo adaptativos
+    private static final int SCAN_INTERVAL_SMALL = 100;  // 5 segundos - redes pequeñas
+    private static final int SCAN_INTERVAL_MEDIUM = 200; // 10 segundos - redes medianas
+    private static final int SCAN_INTERVAL_LARGE = 400;  // 20 segundos - redes grandes
+
+    // Estadísticas para UI
     private final Map<Integer, Integer> connectedCoresByTier = new HashMap<>();
     private int totalConnectedCores = 0;
     private int totalProductionRate = 0;
@@ -94,13 +93,16 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, ExperienceCollectorBlockEntity blockEntity) {
-        if (level.isClientSide) return;
+        // Si el BE ya está marcado para removerse, no se hace nada
+        if (level.isClientSide || blockEntity.isRemoved()) return;
 
-        // Escaneo periódico de la red
         blockEntity.scanCooldown--;
         if (blockEntity.scanCooldown <= 0) {
-            blockEntity.scanNetwork();
-            blockEntity.scanCooldown = SCAN_INTERVAL;
+            // SEGURIDAD: Solo escanear si el chunk central está validado
+            if (level.hasChunkAt(pos)) {
+                blockEntity.scanNetwork();
+                blockEntity.scanCooldown = blockEntity.getScanInterval();
+            }
         }
 
         // Transferir XP desde los cores (cada tick)
@@ -115,28 +117,77 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
     }
 
     /**
+     * Determina el intervalo de escaneo según el tamaño de la red.
+     */
+    private int getScanInterval() {
+        if (cachedNetwork == null) {
+            return SCAN_INTERVAL_SMALL;
+        }
+
+        int networkSize = cachedNetwork.networkSize;
+
+        // Si la red alcanzó el límite de escaneo, usar intervalo más largo
+        if (cachedNetwork.hitScanLimit) {
+            if (ModConfig.GENERAL.enableDebugLogging.get()) {
+                System.out.println("[Collector] Large network detected at " + worldPosition +
+                        ", using extended scan interval");
+            }
+            return SCAN_INTERVAL_LARGE;
+        }
+
+        // Intervalos adaptativos según tamaño
+        if (networkSize > 300) {
+            return SCAN_INTERVAL_LARGE;
+        } else if (networkSize > 100) {
+            return SCAN_INTERVAL_MEDIUM;
+        } else {
+            return SCAN_INTERVAL_SMALL;
+        }
+    }
+
+    /**
      * Escanea la red desde este Collector.
-     * Solo se hace periódicamente (cada SCAN_INTERVAL ticks).
      */
     private void scanNetwork() {
         if (level == null) return;
 
         try {
+            long startTime = System.nanoTime();
+
             cachedNetwork = NetworkManager.scanFromCollector(level, worldPosition, tier);
 
-            // Actualizar estadísticas para UI
+            long endTime = System.nanoTime();
+            long durationMs = (endTime - startTime) / 1_000_000;
+
+            // Log si el escaneo tardó mucho
+            if (durationMs > 50 && ModConfig.GENERAL.enableDebugLogging.get()) {
+                System.out.println("[Collector] Network scan at " + worldPosition +
+                        " took " + durationMs + "ms (size: " + cachedNetwork.networkSize +
+                        ", cores: " + cachedNetwork.cores.size() + ")");
+            }
+
+            // Advertencia si alcanzó el límite
+            if (cachedNetwork.hitScanLimit && ModConfig.GENERAL.enableDebugLogging.get()) {
+                System.out.println("[Collector] WARNING: Network at " + worldPosition +
+                        " hit scan limit! Consider reducing network size.");
+            }
+
             updateNetworkStats();
             setChanged();
 
         } catch (Exception e) {
-            // Si falla el escaneo, invalidar cache y reintentar después
+            // Si falla, invalidar y esperar más tiempo
+            if (ModConfig.GENERAL.enableDebugLogging.get()) {
+                System.err.println("[Collector] Network scan failed at " + worldPosition + ": " + e.getMessage());
+                e.printStackTrace();
+            }
             cachedNetwork = null;
-            scanCooldown = SCAN_INTERVAL * 2; // Esperar el doble
+            scanCooldown = SCAN_INTERVAL_LARGE;
         }
     }
 
     /**
-     * Actualiza las estadísticas para la UI basándose en la red actual.
+     * Actualiza las estadísticas para la UI.
      */
     private void updateNetworkStats() {
         if (cachedNetwork == null || !cachedNetwork.valid) {
@@ -158,24 +209,20 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
     }
 
     /**
-     * Transfiere XP disponible desde los cores conectados.
-     * Esta lógica se ejecuta CADA TICK.
+     * Transfiere XP desde los cores conectados.
      */
     private void transferXPFromCores() {
         if (level == null || cachedNetwork == null || !cachedNetwork.valid) return;
-        if (isFull()) return; // No transferir si estamos llenos
+        if (isFull()) return;
 
-        // Calcular cuánto XP podemos aceptar
         int spaceAvailable = getMaxCapacity() - storedExperience;
         if (spaceAvailable <= 0) return;
 
-        // Obtener tasa de flujo según config
         int flowRate = getFlowRatePerTick();
         int xpToTransfer = Math.min(spaceAvailable, flowRate);
 
         if (xpToTransfer <= 0) return;
 
-        // Extraer XP de los cores (priorizando por tier)
         int transferred = extractXPFromCores(xpToTransfer);
 
         if (transferred > 0) {
@@ -189,15 +236,11 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
     }
 
     /**
-     * Extrae XP de los cores conectados, priorizando por tier (mayor primero).
-     *
-     * @param maxAmount Cantidad máxima a extraer
-     * @return Cantidad realmente extraída
+     * Extrae XP de los cores conectados.
      */
     private int extractXPFromCores(int maxAmount) {
         int remaining = maxAmount;
 
-        // Ordenar cores por tier descendente (ya vienen ordenados del NetworkManager)
         for (NetworkManager.CoreConnection coreConnection : cachedNetwork.cores) {
             if (remaining <= 0) break;
 
@@ -220,25 +263,21 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
      */
     private int getFlowRatePerTick() {
         if (!ModConfig.PIPES.limitedFlowrate.get()) {
-            // Flujo ilimitado - transferir todo lo disponible
             return Integer.MAX_VALUE;
         }
-
-        // Flujo limitado - usar la config
         return ModConfig.PIPES.getFlowRate(tier);
     }
 
     /**
-     * Fuerza un re-escaneo inmediato de la red.
-     * Llamado cuando cambia la topología (pipes rotas/colocadas).
+     * Invalida la red y fuerza re-escaneo inmediato.
      */
     public void invalidateNetwork() {
         cachedNetwork = null;
-        scanCooldown = 0; // Escanear en el próximo tick
+        scanCooldown = 0;
     }
 
     // ========================================
-    // MÉTODOS DE ALMACENAMIENTO
+    // ALMACENAMIENTO
     // ========================================
 
     private void updateLightLevel() {
@@ -313,7 +352,7 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
     }
 
     // ========================================
-    // MÉTODOS DE ESTADÍSTICAS (Para UI)
+    // ESTADÍSTICAS (Para UI)
     // ========================================
 
     public Map<Integer, Integer> getConnectedCoresByTier() {
@@ -400,7 +439,7 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
     }
 
     // ========================================
-    // NBT PERSISTENCE
+    // NBT
     // ========================================
 
     @Override
@@ -409,8 +448,6 @@ public class ExperienceCollectorBlockEntity extends BlockEntity implements MenuP
         tag.putInt("StoredExperience", storedExperience);
         tag.putInt("Tier", tier);
         tag.putInt("ScanCooldown", scanCooldown);
-
-        // No guardamos la red completa - se recalcula al cargar
     }
 
     @Override

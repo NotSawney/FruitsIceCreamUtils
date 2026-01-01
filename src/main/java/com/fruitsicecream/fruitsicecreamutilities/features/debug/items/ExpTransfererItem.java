@@ -5,6 +5,7 @@ import com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEntit
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blockEntity.ExperienceCollectorBlockEntity;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.network.NetworkManager;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -212,25 +213,46 @@ public class ExpTransfererItem extends Item {
     /**
      * Busca un Collector conectado a este Core escaneando la red.
      */
+    /**
+     * Busca un Collector conectado a este Core escaneando la red.
+     */
     private ExperienceCollectorBlockEntity findConnectedCollector(ExperienceCoreBlockEntity coreEntity) {
         Level level = coreEntity.getLevel();
         if (level == null) return null;
 
         // Buscar Collectors en un radio razonable
-        // (Collectors básicos tienen max distance de 10, así que buscamos en 15 para estar seguros)
-        int searchRadius = 15;
+        // Usando el máximo posible entre ambos tipos de pipes
+        int searchRadius = Math.max(
+                ModConfig.PIPES.goldMaxDistance.get() > 0 ? ModConfig.PIPES.goldMaxDistance.get() : 15,
+                ModConfig.PIPES.diamondMaxDistance.get() > 0 ? ModConfig.PIPES.diamondMaxDistance.get() : 15
+        );
 
-        for (BlockEntity be : level.blockEntityList) {
+        BlockPos corePos = coreEntity.getBlockPos();
+
+        // Iterar sobre todas las posiciones en el radio de búsqueda
+        for (BlockPos pos : BlockPos.betweenClosed(
+                corePos.offset(-searchRadius, -searchRadius, -searchRadius),
+                corePos.offset(searchRadius, searchRadius, searchRadius))) {
+
+            BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof ExperienceCollectorBlockEntity collector) {
-                // Verificar si este core está en el rango
-                double distance = coreEntity.getBlockPos().distSqr(collector.getBlockPos());
-                if (distance <= searchRadius * searchRadius) {
-                    // Verificar si está en la red del collector
-                    var coresByTier = collector.getConnectedCoresByTier();
-                    if (!coresByTier.isEmpty()) {
-                        // El core está conectado si el collector tiene cores
-                        // (podríamos hacer una verificación más exhaustiva, pero esto es suficiente para debug)
-                        return collector;
+                // Verificar si este collector tiene cores conectados
+                // (Si tiene cores, es un colector activo)
+                if (collector.getTotalConnectedCores() > 0) {
+                    // Verificar si el core podría estar en la red de este collector
+                    // comprobando la distancia y compatibilidad de tier
+                    double distance = Math.sqrt(corePos.distSqr(pos));
+                    int collectorTier = collector.getTier();
+                    int coreTier = coreEntity.getTier();
+
+                    // Verificar compatibilidad de tier
+                    if (ModConfig.COLLECTORS.isCoreTierCompatible(collectorTier, coreTier)) {
+                        // Verificar distancia máxima según el tier del collector
+                        int maxDistance = ModConfig.PIPES.getMaxDistance(collectorTier);
+                        if (maxDistance < 0 || distance <= maxDistance) {
+                            // Este collector es compatible y está en rango
+                            return collector;
+                        }
                     }
                 }
             }

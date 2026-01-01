@@ -307,6 +307,9 @@ public class ModConfig {
         public final ForgeConfigSpec.IntValue diamondFlowRate; // XP/tick cuando limitedFlowrate=true
         public final ForgeConfigSpec.ConfigValue<String> diamondRequiredTool;
 
+        public final ForgeConfigSpec.IntValue maxScanBlocks;
+        public final ForgeConfigSpec.IntValue maxNetworkCores;
+
         PipesConfig(ForgeConfigSpec.Builder builder) {
             builder.comment("Pipe Configuration")
                     .comment("Configure pipe behavior, limits, and requirements")
@@ -369,6 +372,16 @@ public class ModConfig {
                     .comment("Minimum tool tier required to break this pipe")
                     .comment("Options: WOOD, STONE, IRON, DIAMOND, NETHERITE, GOLD")
                     .define("requiredTool", "DIAMOND");
+
+            maxScanBlocks = builder
+                    .comment("Maximum blocks to scan when building a network")
+                    .comment("Higher values allow larger networks but may cause lag")
+                    .defineInRange("maxScanBlocks", 2000, 500, 10000);
+
+            maxNetworkCores = builder
+                    .comment("Maximum cores that can connect to a single Collector")
+                    .comment("Set to -1 for unlimited (not recommended)")
+                    .defineInRange("maxNetworkCores", 100, -1, 1000);
 
             builder.pop();
 

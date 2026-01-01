@@ -33,6 +33,10 @@ public class ModCreativeTabs {
                         output.accept(ModItems.DEBUG_STICK.get());
                         output.accept(ModItems.EXP_ADDITIONER.get());
                         output.accept(ModItems.EXP_TRANSFERER.get());
+
+                        // Experience Pipes
+                        output.accept(ModItems.GOLD_PIPE.get());
+                        output.accept(ModItems.DIAMOND_PIPE.get());
                     })
                     .build());
 

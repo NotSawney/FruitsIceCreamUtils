@@ -48,6 +48,12 @@ public class ModItems {
     public static final RegistryObject<Item> EXP_TRANSFERER = ITEMS.register("exp_transferer",
             () -> new ExpTransfererItem(new Item.Properties().stacksTo(1)));
 
+    public static final RegistryObject<Item> GOLD_PIPE = ITEMS.register("gold_pipe",
+            () -> new BlockItem(ModBlocks.GOLD_PIPE.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> DIAMOND_PIPE = ITEMS.register("diamond_pipe",
+            () -> new BlockItem(ModBlocks.DIAMOND_PIPE.get(), new Item.Properties()));
+
     public static void register(IEventBus eventBus) {
         ITEMS.register(eventBus);
     }

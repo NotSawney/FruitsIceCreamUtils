@@ -2,8 +2,10 @@ package com.fruitsicecream.fruitsicecreamutilities.core.init;
 
 import com.fruitsicecream.fruitsicecreamutilities.FruitsIceCreamUtilities;
 import com.fruitsicecream.fruitsicecreamutilities.core.config.ModConfig;
+import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.DiamondPipeBlock;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.ExperienceCollectorBlock;
 import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.ExperienceCoreBlock;
+import com.fruitsicecream.fruitsicecreamutilities.features.experience.blocks.GoldPipeBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -80,6 +82,12 @@ public class ModBlocks {
                             .requiresCorrectToolForDrops(),
                     2
             ));
+
+    public static final RegistryObject<Block> GOLD_PIPE = BLOCKS.register("gold_pipe",
+            () -> new GoldPipeBlock());
+
+    public static final RegistryObject<Block> DIAMOND_PIPE = BLOCKS.register("diamond_pipe",
+            () -> new DiamondPipeBlock());
 
     public static void register(IEventBus eventBus) {
         BLOCKS.register(eventBus);

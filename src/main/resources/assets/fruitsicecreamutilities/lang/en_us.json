@@ -10,6 +10,9 @@
   "block.fruitsicecreamutilities.basic_exp_collector": "Basic Experience Collector",
   "block.fruitsicecreamutilities.advanced_exp_collector": "Advanced Experience Collector",
 
+  "block.fruitsicecreamutilities.gold_pipe": "Gold-Inlaid Pipe",
+  "block.fruitsicecreamutilities.diamond_pipe": "Diamond-Studded Pipeline",
+
   "item.fruitsicecreamutilities.debug_stick": "Debug Stick",
   "item.fruitsicecreamutilities.debug_stick.tooltip": "Right-click blocks to get debug information",
   "item.fruitsicecreamutilities.exp_additioner": "Experience Additioner",

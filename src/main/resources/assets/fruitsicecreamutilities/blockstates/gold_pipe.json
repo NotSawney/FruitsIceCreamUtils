@@ -1,0 +1,49 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "fruitsicecreamutilities:block/gold_pipe_core"
+      }
+    },
+    {
+      "when": { "east": "true" },
+      "apply": {
+        "model": "fruitsicecreamutilities:block/gold_pipe_arm_x"
+      }
+    },
+    {
+      "when": { "west": "true" },
+      "apply": {
+        "model": "fruitsicecreamutilities:block/gold_pipe_arm_x",
+        "y": 180
+      }
+    },
+    {
+      "when": { "south": "true" },
+      "apply": {
+        "model": "fruitsicecreamutilities:block/gold_pipe_arm_x",
+        "y": 90
+      }
+    },
+    {
+      "when": { "north": "true" },
+      "apply": {
+        "model": "fruitsicecreamutilities:block/gold_pipe_arm_x",
+        "y": 270
+      }
+    },
+    {
+      "when": { "up": "true" },
+      "apply": {
+        "model": "fruitsicecreamutilities:block/gold_pipe_arm_y"
+      }
+    },
+    {
+      "when": { "down": "true" },
+      "apply": {
+        "model": "fruitsicecreamutilities:block/gold_pipe_arm_y",
+        "x": 180
+      }
+    }
+  ]
+}

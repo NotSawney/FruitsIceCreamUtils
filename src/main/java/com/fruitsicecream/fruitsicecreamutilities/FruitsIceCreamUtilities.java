@@ -11,6 +11,8 @@ import com.fruitsicecream.fruitsicecreamutilities.features.experience.client.Exp
 import com.fruitsicecream.fruitsicecreamutilities.network.ModNetworking;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.gui.screens.MenuScreens;
+import net.minecraft.client.renderer.ItemBlockRenderTypes;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.server.ServerStartingEvent;
@@ -66,10 +68,16 @@ public class FruitsIceCreamUtilities {
         @SubscribeEvent
         public static void onClientSetup(FMLClientSetupEvent event) {
             event.enqueueWork(() -> {
+                // Registrar screens existentes
                 MenuScreens.register(ModMenuTypes.EXPERIENCE_CORE_MENU.get(), ExperienceCoreScreen::new);
                 MenuScreens.register(ModMenuTypes.EXPERIENCE_COLLECTOR_MENU.get(), ExperienceCollectorScreen::new);
+
+                // Configurar RenderType para las tuberías (transparencia)
+                ItemBlockRenderTypes.setRenderLayer(ModBlocks.GOLD_PIPE.get(), RenderType.cutout());
+                ItemBlockRenderTypes.setRenderLayer(ModBlocks.DIAMOND_PIPE.get(), RenderType.cutout());
             });
             LOGGER.info("FruitsIceCream Utilities - Cliente configurado!");
         }
+
     }
 }

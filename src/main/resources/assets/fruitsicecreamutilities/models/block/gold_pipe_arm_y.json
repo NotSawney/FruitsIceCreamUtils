@@ -1,0 +1,25 @@
+{
+	"format_version": "1.9.0",
+	"credit": "Made with Blockbench",
+	"ambientocclusion": false,
+	"texture_size": [32, 32],
+	"textures": {
+		"0": "fruitsicecreamutilities:block/gold_pipe_arm",
+		"particle": "fruitsicecreamutilities:block/gold_pipe_arm"
+	},
+	"elements": [
+		{
+			"from": [6, 11, 6],
+			"to": [10, 16, 10],
+			"rotation": {"angle": 0, "axis": "y", "origin": [5, 11, 6]},
+			"faces": {
+				"north": {"uv": [4, 3, 8, 8], "texture": "#0"},
+				"east": {"uv": [4, 3, 8, 8], "texture": "#0"},
+				"south": {"uv": [4, 3, 8, 8], "texture": "#0"},
+				"west": {"uv": [4, 3, 8, 8], "texture": "#0"},
+				"up": {"uv": [4, 5, 0, 0], "texture": "#0"},
+				"down": {"uv": [4, 0, 0, 5], "texture": "#0"}
+			}
+		}
+	]
+}

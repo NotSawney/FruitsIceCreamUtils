@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ND ",
+    "DPD",
+    " DN"
+  ],
+  "key": {
+    "D": {
+      "item": "minecraft:diamond"
+    },
+    "P": {
+      "item": "fruitsicecreamutilities:gold_pipe"
+    },
+    "N":{
+      "item": "minecraft:netherite_ingot"
+    }
+  },
+  "result": {
+    "item": "fruitsicecreamutilities:diamond_pipe",
+    "count": 16
+  }
+}
